@@ -689,6 +689,12 @@ uint16_t   tr_sessionGetPeerLimitPerTorrent (const tr_session *);
 void       tr_sessionSetPaused      (tr_session *, bool isPaused);
 bool       tr_sessionGetPaused      (const tr_session *);
 
+void       tr_sessionSetMaster (tr_session * session, bool isMaster);
+bool       tr_sessionGetMaster (const tr_session * session);
+
+void tr_sessionSetSlaves(tr_session * session, const char * slaves);
+const char * tr_sessionGetSlaves(const tr_session * session);
+
 void       tr_sessionSetDeleteSource (tr_session *, bool deleteSource);
 bool       tr_sessionGetDeleteSource (const tr_session *);
 
@@ -1007,6 +1013,18 @@ void        tr_ctorSetFilesWanted (tr_ctor                * ctor,
                                    tr_file_index_t          fileCount,
                                    bool                     wanted);
 
+/** @brief Set the master for the torrent being added with this ctor.
+    @see tr_ctorSetMaster () */
+void  tr_ctorSetMaster (tr_ctor      * ctor,
+                        tr_ctorMode    mode,
+                        const char   * master);
+
+/** @brief Get the master for the torrent being added with this ctor.
+    @see tr_ctorSetMaster () */
+int
+tr_ctorGetMaster (const tr_ctor      * ctor,
+                  tr_ctorMode    mode,
+                  const char   ** setmeMaster);
 
 /** @brief Get this peer constructor's peer limit */
 bool        tr_ctorGetPeerLimit (const tr_ctor * ctor,
@@ -1817,6 +1835,8 @@ struct tr_info
     char             * torrent;
 
     char            ** webseeds;
+
+    char             * master;
 
     char             * comment;
     char             * creator;

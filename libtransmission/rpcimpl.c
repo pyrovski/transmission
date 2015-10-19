@@ -1721,11 +1721,15 @@ torrentAdd (tr_session               * session,
       int64_t i;
       bool boolVal;
       tr_variant * l;
+      const char * master = NULL;
       const char * str;
       const char * cookies = NULL;
       tr_ctor * ctor = tr_ctorNew (session);
 
       /* set the optional arguments */
+
+      if(tr_variantDictFindStr (args_in, TR_KEY_master, &master, NULL))
+          tr_ctorSetMaster (ctor, TR_FORCE, master);
 
       tr_variantDictFindStr (args_in, TR_KEY_cookies, &cookies, NULL);
 

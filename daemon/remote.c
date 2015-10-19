@@ -268,6 +268,7 @@ static tr_option opts[] =
     { 900, "priority-high",          "Try to download these file(s) first", "ph", 1, "<files>" },
     { 901, "priority-normal",        "Try to download these file(s) normally", "pn", 1, "<files>" },
     { 902, "priority-low",           "Try to download these file(s) last", "pl", 1, "<files>" },
+    { 994, "master",                 "Set torrent master host", "mh", 1, "<master host>" },
     { 700, "bandwidth-high",         "Give this torrent first chance at available bandwidth", "Bh", 0, NULL },
     { 701, "bandwidth-normal",       "Give this torrent bandwidth left over by high priority torrents", "Bn", 0, NULL },
     { 702, "bandwidth-low",          "Give this torrent bandwidth left over by high and normal priority torrents", "Bl", 0, NULL },
@@ -423,6 +424,7 @@ getOptMode (int val)
       case 900: /* file priority-high */
       case 901: /* file priority-normal */
       case 902: /* file priority-low */
+      case 994: /* master */
         return MODE_TORRENT_SET | MODE_TORRENT_ADD;
 
       case 961: /* find */
@@ -2180,6 +2182,8 @@ processArgs (const char * rpcurl, int argc, const char ** argv)
                 case 901: addFiles (args, TR_KEY_priority_normal, optarg);
                           break;
                 case 902: addFiles (args, TR_KEY_priority_low, optarg);
+                          break;
+                case 994: tr_variantDictAddStr (args, TR_KEY_master, optarg);
                           break;
                 case 700: tr_variantDictAddInt (args, TR_KEY_bandwidthPriority,  1);
                           break;

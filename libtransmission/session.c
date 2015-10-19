@@ -381,6 +381,8 @@ tr_sessionGetDefaultSettings (tr_variant * d)
   tr_variantDictAddStr  (d, TR_KEY_bind_address_ipv6,               TR_DEFAULT_BIND_ADDRESS_IPV6);
   tr_variantDictAddBool (d, TR_KEY_start_added_torrents,            true);
   tr_variantDictAddBool (d, TR_KEY_trash_original_torrent_files,    false);
+  tr_variantDictAddBool (d, TR_KEY_master,                          false);
+  tr_variantDictAddStr  (d, TR_KEY_slaves,                          "");
 }
 
 void
@@ -453,6 +455,8 @@ tr_sessionGetSettings (tr_session * s, tr_variant * d)
   tr_variantDictAddStr  (d, TR_KEY_bind_address_ipv6,            tr_address_to_string (&s->public_ipv6->addr));
   tr_variantDictAddBool (d, TR_KEY_start_added_torrents,         !tr_sessionGetPaused (s));
   tr_variantDictAddBool (d, TR_KEY_trash_original_torrent_files, tr_sessionGetDeleteSource (s));
+  tr_variantDictAddBool (d, TR_KEY_master,                       tr_sessionGetMaster(s));
+  tr_variantDictAddStr  (d, TR_KEY_slaves,                       tr_sessionGetSlaves(s));
 }
 
 bool
@@ -619,6 +623,8 @@ tr_sessionInit (const char * configDir,
   data.messageQueuingEnabled = messageQueuingEnabled;
   data.clientSettings = clientSettings;
   tr_runInEventThread (session, tr_sessionInitImpl, &data);
+
+  //!@todo replace with proper synchronization
   while (!data.done)
     tr_wait_msec (50);
 
@@ -809,6 +815,10 @@ sessionSetImpl (void * vdata)
     tr_blocklistSetURL (session, str);
   if (tr_variantDictFindBool (settings, TR_KEY_start_added_torrents, &boolVal))
     tr_sessionSetPaused (session, !boolVal);
+  if (tr_variantDictFindBool (settings, TR_KEY_master, &boolVal))
+    tr_sessionSetMaster (session, boolVal);
+  if (tr_variantDictFindStr (settings, TR_KEY_slaves, &str, NULL))
+    tr_sessionSetSlaves (session, str);
   if (tr_variantDictFindBool (settings, TR_KEY_trash_original_torrent_files, &boolVal))
     tr_sessionSetDeleteSource (session, boolVal);
   if (tr_variantDictFindInt (settings, TR_KEY_peer_id_ttl_hours, &i))
@@ -952,6 +962,8 @@ tr_sessionSet (tr_session * session, tr_variant * settings)
 
   /* run the rest in the libtransmission thread */
   tr_runInEventThread (session, sessionSetImpl, &data);
+
+  //!@todo replace with proper synchronization
   while (!data.done)
     tr_wait_msec (100);
 }
@@ -1697,6 +1709,43 @@ tr_sessionGetPaused (const tr_session * session)
 
   return session->pauseAddedTorrent;
 }
+
+void
+tr_sessionSetSlaves (tr_session * session, const char * slaves)
+{
+    assert (tr_isSession (session));
+
+    tr_logAddNamedDbg("master", "setting slaves: %s", slaves);
+
+    session->slaves = slaves;
+}
+
+const char *
+tr_sessionGetSlaves (const tr_session * session)
+{
+    assert (tr_isSession (session));
+
+    return session->slaves;
+}
+
+void
+tr_sessionSetMaster (tr_session * session, bool isMaster)
+{
+    assert (tr_isSession (session));
+
+    tr_logAddNamedDbg("master", "setting session master mode: %d", isMaster);
+
+    session->masterMode = isMaster;
+}
+
+bool
+tr_sessionGetMaster (const tr_session * session)
+{
+    assert (tr_isSession (session));
+
+    return session->masterMode;
+}
+
 
 void
 tr_sessionSetDeleteSource (tr_session * session, bool deleteSource)

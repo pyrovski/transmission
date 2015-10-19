@@ -10,6 +10,7 @@
 #include <errno.h> /* EINVAL */
 
 #include "transmission.h"
+#include "log.h"
 #include "file.h"
 #include "magnet.h"
 #include "session.h" /* tr_sessionFindTorrentFile () */
@@ -22,10 +23,12 @@ struct optional_args
     bool            isSet_paused;
     bool            isSet_connected;
     bool            isSet_downloadDir;
+    bool            isSet_master;
 
     bool            isPaused;
     uint16_t        peerLimit;
     char          * downloadDir;
+    char          * master;
 };
 
 /** Opaque class used when instantiating torrents.
@@ -428,6 +431,49 @@ tr_ctorGetSession (const tr_ctor * ctor)
 {
     return (tr_session*) ctor->session;
 }
+
+void
+tr_ctorSetMaster (tr_ctor      * ctor,
+                  tr_ctorMode    mode,
+                  const char   * master)
+{
+    struct optional_args * args;
+    
+    assert (ctor != NULL);
+    assert ((mode == TR_FALLBACK) || (mode == TR_FORCE));
+    
+    args = &ctor->optionalArgs[mode];
+    tr_free (args->master);
+    args->master = NULL;
+    args->isSet_master = false;
+    
+    if (master && *master)
+    {
+        args->isSet_master = true;
+        args->master = tr_strdup (master);
+        tr_logAddNamedDbg("master", "set to %s", master);
+    }
+}
+
+int
+tr_ctorGetMaster (const tr_ctor      * ctor,
+                  tr_ctorMode    mode,
+                  const char ** setmeMaster)
+{
+    const struct optional_args * args;
+    
+    assert (ctor != NULL);
+    assert ((mode == TR_FALLBACK) || (mode == TR_FORCE));
+    
+    args = &ctor->optionalArgs[mode];
+    if(setmeMaster && args->isSet_master && args->master){
+        *setmeMaster = args->master;
+        return 0;
+    } else
+        return 1;
+}
+
+
 
 /***
 ****

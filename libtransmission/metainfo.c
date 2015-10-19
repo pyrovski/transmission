@@ -494,6 +494,16 @@ tr_metainfoParseImpl (const tr_session  * session,
       inf->originalName = tr_strdup (inf->name);
     }
 
+  /* master */
+  len = 0;
+  tr_free (inf->master);
+  tr_logAddNamedDbg("master", "master present: %d",
+                    +                    tr_variantDictFindStr (meta, TR_KEY_master, &str, &len));
+  if (tr_variantDictFindStr (meta, TR_KEY_master, &str, &len)){
+      inf->master = tr_utf8clean (str, len);
+      tr_logAddNamedDbg("master", "inf set to %s", inf->master);
+  }
+
   /* comment */
   len = 0;
   if (!tr_variantDictFindStr (meta, TR_KEY_comment_utf_8, &str, &len))
@@ -614,6 +624,7 @@ tr_metainfoFree (tr_info * inf)
   tr_free (inf->torrent);
   tr_free (inf->originalName);
   tr_free (inf->name);
+  tr_free (inf->master);
 
   for (i=0; i<inf->trackerCount; i++)
     {

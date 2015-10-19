@@ -135,6 +135,7 @@ static const struct tr_option options[] =
     { 953, "global-seedratio", "All torrents, unless overridden by a per-torrent setting, should seed until a specific ratio", "gsr", 1, "ratio" },
     { 954, "no-global-seedratio", "All torrents, unless overridden by a per-torrent setting, should seed regardless of ratio", "GSR", 0, NULL },
     { 'x', "pid-file", "Enable PID file", "x", 1, "<pid-file>" },
+    { 994, "master", "Enable master mode", "mm", 0, NULL},
     { 0, NULL, NULL, NULL, 0, NULL }
 };
 

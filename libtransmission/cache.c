@@ -333,6 +333,7 @@ tr_cacheWriteBlock (tr_cache         * cache,
 
   assert (tr_amInEventThread (torrent->session));
 
+  //!@todo how do cache blocks get written to disk?
   if (cb == NULL)
     {
       cb = tr_new (struct cache_block, 1);
