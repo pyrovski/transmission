@@ -275,6 +275,7 @@ tr_eventInit (tr_session * session)
     eh->thread = tr_threadNew (libeventThreadFunc, eh);
 
     /* wait until the libevent thread is running */
+    //!@todo replace with proper synchronization
     while (session->events == NULL)
         tr_wait_msec (100);
 }

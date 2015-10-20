@@ -211,6 +211,78 @@ readOrWritePiece (tr_torrent       * tor,
   if (pieceIndex >= tor->info.pieceCount)
     return EINVAL;
 
+  if(tor->hasMaster){
+      
+      /*!@todo read or write piece from/to master.
+
+        fillOutputBuffer() constructs messages, but it takes
+        instructions from a tr_peerMsgs * msgs variable. These are
+        enqueued from didWrite(), which is set as a callback in
+        tr_peerIoSetIOFuncs() from tr_peerMsgsNew(). didWrite() -> 
+        firePeerGotPieceData(). Msgs come from caller to
+        didWrite(). 
+        v- UTPSocket::write_outgoing_packet()
+        utp_on_write()     -v
+        event_write_cb() -> didWriteWrapper() -> ...
+        didWrite() -> peerPulse() -> fillOutputBuffer().
+        
+        event_write_cb() -> tr_evbuffer_write() // leads to the actual
+        socket write. See libevent evbuffer_write_atmost().
+
+        Actual messages live in struct tr_peerIo member userData, a void * to a tr_peerMsgs struct.
+
+        See also: canRead.
+
+        If we want writes to be fast, we should queue the message and
+        flush the output buffer immediately. This is not critical.
+
+        --------
+        Pre-implementation: 
+        - Make sure master is a peer.
+
+        Implementation: if master is still a peer (i.e. master is up,
+        connection between slave and master is OK),
+
+        Writes: queue a peer piece message to the master with this
+        piece data.
+
+        Reads: is there a way to perform a synchronous request from a
+        peer? This method would require fewer code changes, but may
+        pose challenges if the master-slave link ever goes down.
+        
+        If not, queue a request to the master and trigger a message to
+        the requesting peer when the piece message is received from
+        the master. This requires:
+
+        - method to check all peers to see if they have requested the
+        block.
+
+        - method to prevent multiple outstanding requests to the
+        master for a single block, as this function was originally
+        synchronous for reads.
+
+        - changes to callpath to make cache refills asynchronous. This
+          sounds risky, but might work. Transmission should reserve a
+          place in the cache for this block in the current callpath,
+          so overflow is not an issue. It might happen that all cache
+          blocks are pending reads or pending writes, but that's
+          survivable if the master ever comes back up. This needs
+          extra bits in the cache metadata to mark blocks as in-transit.
+
+        threads: 
+        - event: started in tr_sessionInit()
+        - dht: started in tr_dhtInit()
+        - verify: started in tr_verifyAdd()
+
+        If there's only one event thread, all network IO should be
+        asynchronous. This is already the case with libevent, but the
+        current implementation expects synchronous reads from files.
+       */
+      
+      
+      return err;
+  }
+  
   tr_ioFindFileLocation (tor, pieceIndex, pieceOffset,
                          &fileIndex, &fileOffset);
 
@@ -255,6 +327,7 @@ tr_ioPrefetch (tr_torrent       * tor,
   return readOrWritePiece (tor, TR_IO_PREFETCH, pieceIndex, begin, NULL, len);
 }
 
+//!@pb
 int
 tr_ioWrite (tr_torrent       * tor,
             tr_piece_index_t   pieceIndex,

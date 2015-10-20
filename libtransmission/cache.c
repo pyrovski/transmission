@@ -191,6 +191,7 @@ flushContiguous (tr_cache * cache, int pos, int n)
   err = tr_ioWrite (tor, piece, offset, walk-buf, buf);
   tr_free (buf);
 
+  //!@todo does not apply to master writes
   ++cache->disk_writes;
   cache->disk_write_bytes += walk-buf;
   return err;
@@ -333,7 +334,6 @@ tr_cacheWriteBlock (tr_cache         * cache,
 
   assert (tr_amInEventThread (torrent->session));
 
-  //!@todo how do cache blocks get written to disk?
   if (cb == NULL)
     {
       cb = tr_new (struct cache_block, 1);
