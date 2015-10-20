@@ -268,6 +268,12 @@ readOrWritePiece (tr_torrent       * tor,
           blocks are pending reads or pending writes, but that's
           survivable if the master ever comes back up. This needs
           extra bits in the cache metadata to mark blocks as in-transit.
+          
+          - It seems that Transmission only places received blocks in
+            the cache and not blocks read from disk. So, blocks can go
+            peer->client->cache->disk or disk->client->peer.
+
+        Read path: tr_peerMsgs.callback() = peerCallbackFunc() -> tr_torrentGotBlock() -> tr_torrentCheckPiece() -> tr_ioTestPiece() -> recalculateHash() -> tr_cacheReadBlock() -> tr_ioRead() -> readOrWritePiece() -> readOrWriteBytes() -> tr_sys_file_read_at()
 
         threads: 
         - event: started in tr_sessionInit()
