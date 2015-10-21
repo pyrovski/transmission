@@ -29,6 +29,7 @@ struct optional_args
     uint16_t        peerLimit;
     char          * downloadDir;
     char          * master;
+    char          * masterPort;
 };
 
 /** Opaque class used when instantiating torrents.
@@ -473,6 +474,44 @@ tr_ctorGetMaster (const tr_ctor      * ctor,
         return 1;
 }
 
+void
+tr_ctorSetMasterPort (tr_ctor      * ctor,
+                      tr_ctorMode    mode,
+                      const char   * masterPort)
+{
+    struct optional_args * args;
+    
+    assert (ctor != NULL);
+    assert ((mode == TR_FALLBACK) || (mode == TR_FORCE));
+    
+    args = &ctor->optionalArgs[mode];
+    tr_free (args->masterPort);
+    args->masterPort = NULL;
+    
+    if (masterPort && *masterPort)
+    {
+        args->masterPort = tr_strdup (masterPort);
+        tr_logAddNamedDbg("master", "port set to %s", masterPort);
+    }
+}
+
+int
+tr_ctorGetMasterPort (const tr_ctor      * ctor,
+                      tr_ctorMode    mode,
+                      const char ** setmeMasterPort)
+{
+    const struct optional_args * args;
+    
+    assert (ctor != NULL);
+    assert ((mode == TR_FALLBACK) || (mode == TR_FORCE));
+    
+    args = &ctor->optionalArgs[mode];
+    if(setmeMasterPort && args->masterPort){
+        *setmeMasterPort = args->masterPort;
+        return 0;
+    }
+    return 1;
+}
 
 
 /***

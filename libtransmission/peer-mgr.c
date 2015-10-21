@@ -2484,6 +2484,58 @@ tr_peerMgrStopTorrent (tr_torrent * tor)
   stopSwarm (tor->swarm);
 }
 
+/*!@pb just need to set addr, port, fromFirst, flags on atom.
+ */
+static void
+initiateConnection (tr_peerMgr * mgr, tr_swarm * s, struct peer_atom * atom)
+{
+  tr_peerIo * io;
+  const time_t now = tr_time ();
+  bool utp = tr_sessionIsUTPEnabled (mgr->session) && !atom->utp_failed;
+
+  if (atom->fromFirst == TR_PEER_FROM_PEX)
+    /* PEX has explicit signalling for uTP support.  If an atom
+       originally came from PEX and doesn't have the uTP flag, skip the
+       uTP connection attempt.  Are we being optimistic here? */
+    utp = utp && (atom->flags & ADDED_F_UTP_FLAGS);
+
+  tordbg (s, "Starting an OUTGOING%s connection with %s",
+          utp ? " µTP" : "", tr_atomAddrStr (atom));
+
+  io = tr_peerIoNewOutgoing (mgr->session,
+                             &mgr->session->bandwidth,
+                             &atom->addr,
+                             atom->port,
+                             s->tor->info.hash,
+                             s->tor->completeness == TR_SEED,
+                             utp);
+
+  if (io == NULL)
+    {
+      tordbg (s, "peerIo not created; marking peer %s as unreachable", tr_atomAddrStr (atom));
+      atom->flags2 |= MYFLAG_UNREACHABLE;
+      atom->numFails++;
+    }
+  else
+    {
+      tr_handshake * handshake = tr_handshakeNew (io,
+                                                  mgr->session->encryptionMode,
+                                                  myHandshakeDoneCB,
+                                                  mgr);
+
+      assert (tr_peerIoGetTorrentHash (io));
+
+      tr_peerIoUnref (io); /* balanced by the initial ref
+                              in tr_peerIoNewOutgoing () */
+
+      tr_ptrArrayInsertSorted (&s->outgoingHandshakes, handshake,
+                               handshakeCompare);
+    }
+
+  atom->lastConnectionAttemptAt = now;
+  atom->time = now;
+}
+
 void
 tr_peerMgrAddTorrent (tr_peerMgr * manager, tr_torrent * tor)
 {
@@ -2492,6 +2544,20 @@ tr_peerMgrAddTorrent (tr_peerMgr * manager, tr_torrent * tor)
   assert (tor->swarm == NULL);
 
   tor->swarm = swarmNew (manager, tor);
+
+  // peers have both tor->swarm->pool (peer_atom) and tor->swarm->peers (tr_peerMsgs)
+  if(tor->hasMaster){
+      //!@todo slaves: add master as peer
+      struct peer_atom atom;
+      atom.fromFirst = TR_PEER_FROM_MASTER;
+      atom.seedProbability = -1;
+      atom.blocklisted = false;
+      atom.port = tor->masterPort;
+
+      initiateConnection(manager, tor->swarm, &atom);
+  } else if(tor->session->masterMode){
+      //!@todo master: add slaves as peers
+  }
 }
 
 void
@@ -3992,6 +4058,7 @@ getPeerCandidates (tr_session * session, int * candidateCount, int max)
       peerCount += tr_ptrArraySize (&tor->swarm->peers);
     }
 
+  //!@todo make room for master if not present
   /* don't start any new handshakes if we're full up */
   if (maxCandidates <= peerCount)
     {
@@ -4042,56 +4109,6 @@ getPeerCandidates (tr_session * session, int * candidateCount, int max)
 
   assert (checkBestScoresComeFirst (candidates, *candidateCount, max));
   return candidates;
-}
-
-static void
-initiateConnection (tr_peerMgr * mgr, tr_swarm * s, struct peer_atom * atom)
-{
-  tr_peerIo * io;
-  const time_t now = tr_time ();
-  bool utp = tr_sessionIsUTPEnabled (mgr->session) && !atom->utp_failed;
-
-  if (atom->fromFirst == TR_PEER_FROM_PEX)
-    /* PEX has explicit signalling for uTP support.  If an atom
-       originally came from PEX and doesn't have the uTP flag, skip the
-       uTP connection attempt.  Are we being optimistic here? */
-    utp = utp && (atom->flags & ADDED_F_UTP_FLAGS);
-
-  tordbg (s, "Starting an OUTGOING%s connection with %s",
-          utp ? " µTP" : "", tr_atomAddrStr (atom));
-
-  io = tr_peerIoNewOutgoing (mgr->session,
-                             &mgr->session->bandwidth,
-                             &atom->addr,
-                             atom->port,
-                             s->tor->info.hash,
-                             s->tor->completeness == TR_SEED,
-                             utp);
-
-  if (io == NULL)
-    {
-      tordbg (s, "peerIo not created; marking peer %s as unreachable", tr_atomAddrStr (atom));
-      atom->flags2 |= MYFLAG_UNREACHABLE;
-      atom->numFails++;
-    }
-  else
-    {
-      tr_handshake * handshake = tr_handshakeNew (io,
-                                                  mgr->session->encryptionMode,
-                                                  myHandshakeDoneCB,
-                                                  mgr);
-
-      assert (tr_peerIoGetTorrentHash (io));
-
-      tr_peerIoUnref (io); /* balanced by the initial ref
-                              in tr_peerIoNewOutgoing () */
-
-      tr_ptrArrayInsertSorted (&s->outgoingHandshakes, handshake,
-                               handshakeCompare);
-    }
-
-  atom->lastConnectionAttemptAt = now;
-  atom->time = now;
 }
 
 static void

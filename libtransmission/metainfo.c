@@ -498,10 +498,20 @@ tr_metainfoParseImpl (const tr_session  * session,
   len = 0;
   tr_free (inf->master);
   tr_logAddNamedDbg("master", "master present: %d",
-                    +                    tr_variantDictFindStr (meta, TR_KEY_master, &str, &len));
+                    tr_variantDictFindStr (meta, TR_KEY_master, &str, &len));
   if (tr_variantDictFindStr (meta, TR_KEY_master, &str, &len)){
       inf->master = tr_utf8clean (str, len);
       tr_logAddNamedDbg("master", "inf set to %s", inf->master);
+  }
+
+  /* master port */
+  len = 0;
+  tr_free (inf->masterPort);
+  tr_logAddNamedDbg("master", "master port supplied: %d",
+                    tr_variantDictFindStr (meta, TR_KEY_masterPort, &str, &len));
+  if(tr_variantDictFindStr (meta, TR_KEY_masterPort, &str, &len)){
+      inf->masterPort = tr_utf8clean (str, len);
+      tr_logAddNamedDbg("master", "inf port set to %s", inf->masterPort);
   }
 
   /* comment */
@@ -625,6 +635,7 @@ tr_metainfoFree (tr_info * inf)
   tr_free (inf->originalName);
   tr_free (inf->name);
   tr_free (inf->master);
+  tr_free (inf->masterPort);
 
   for (i=0; i<inf->trackerCount; i++)
     {

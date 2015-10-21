@@ -164,6 +164,7 @@ struct tr_torrent
     /* for slave mode */
     bool hasMaster;
     tr_address master;
+    tr_port masterPort; //!@todo set
     /*!@todo add tr_peerIoRef()/Unref() when master is set/lost or torrent is started/stopped. Already added in freeTorrent()*/
     //tr_peerIo *master_peerIo;
 

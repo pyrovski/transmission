@@ -1014,17 +1014,29 @@ void        tr_ctorSetFilesWanted (tr_ctor                * ctor,
                                    bool                     wanted);
 
 /** @brief Set the master for the torrent being added with this ctor.
-    @see tr_ctorSetMaster () */
+ */
 void  tr_ctorSetMaster (tr_ctor      * ctor,
                         tr_ctorMode    mode,
                         const char   * master);
 
 /** @brief Get the master for the torrent being added with this ctor.
-    @see tr_ctorSetMaster () */
+ */
 int
 tr_ctorGetMaster (const tr_ctor      * ctor,
                   tr_ctorMode    mode,
                   const char   ** setmeMaster);
+
+/** @brief Set the master port for the torrent being added with this ctor.
+ */
+void tr_ctorSetMasterPort (tr_ctor      * ctor,
+                           tr_ctorMode    mode,
+                           const char   * masterPort);
+
+/** @brief Get the master port for the torrent being added with this ctor.
+ */
+int tr_ctorGetMasterPort (const tr_ctor      * ctor,
+                          tr_ctorMode    mode,
+                          const char ** setmeMasterPort);
 
 /** @brief Get this peer constructor's peer limit */
 bool        tr_ctorGetPeerLimit (const tr_ctor * ctor,
@@ -1837,6 +1849,7 @@ struct tr_info
     char            ** webseeds;
 
     char             * master;
+    char             * masterPort;
 
     char             * comment;
     char             * creator;
@@ -1896,6 +1909,8 @@ enum
     TR_PEER_FROM_PEX,           /* peers found from PEX */
     TR_PEER_FROM_RESUME,        /* peers found in the .resume file */
     TR_PEER_FROM_LTEP,          /* peer address provided in an LTEP handshake */
+    //!@todo handle this
+    TR_PEER_FROM_MASTER,        /* peer address is master */
     TR_PEER_FROM__MAX
 };
 

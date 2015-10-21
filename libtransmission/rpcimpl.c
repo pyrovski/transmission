@@ -1722,6 +1722,7 @@ torrentAdd (tr_session               * session,
       bool boolVal;
       tr_variant * l;
       const char * master = NULL;
+      const char * masterPort = NULL;
       const char * str;
       const char * cookies = NULL;
       tr_ctor * ctor = tr_ctorNew (session);
@@ -1730,6 +1731,9 @@ torrentAdd (tr_session               * session,
 
       if(tr_variantDictFindStr (args_in, TR_KEY_master, &master, NULL))
           tr_ctorSetMaster (ctor, TR_FORCE, master);
+
+      if(tr_variantDictFindStr (args_in, TR_KEY_masterPort, &masterPort, NULL))
+          tr_ctorSetMasterPort (ctor, TR_FORCE, masterPort);
 
       tr_variantDictFindStr (args_in, TR_KEY_cookies, &cookies, NULL);
 
