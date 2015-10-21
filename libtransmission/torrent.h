@@ -161,8 +161,11 @@ struct tr_torrent
 
     time_t peer_id_creation_time;
 
+    /* for slave mode */
     bool hasMaster;
     tr_address master;
+    /*!@todo add tr_peerIoRef()/Unref() when master is set/lost or torrent is started/stopped. Already added in freeTorrent()*/
+    //tr_peerIo *master_peerIo;
 
     /* Where the files will be when it's complete */
     char * downloadDir;

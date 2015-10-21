@@ -221,20 +221,21 @@ readOrWritePiece (tr_torrent       * tor,
         tr_peerIoSetIOFuncs() from tr_peerMsgsNew(). didWrite() -> 
         firePeerGotPieceData(). Msgs come from caller to
         didWrite(). 
+
+        disk->peer path:
         v- UTPSocket::write_outgoing_packet()
-        utp_on_write()     -v
+        utp_on_write()------|
+        v- (libevent)       v
         event_write_cb() -> didWriteWrapper() -> ...
         didWrite() -> peerPulse() -> fillOutputBuffer().
-        
+        tr_peerMsgsPulse()-^
+
         event_write_cb() -> tr_evbuffer_write() // leads to the actual
         socket write. See libevent evbuffer_write_atmost().
 
         Actual messages live in struct tr_peerIo member userData, a void * to a tr_peerMsgs struct.
 
         See also: canRead.
-
-        If we want writes to be fast, we should queue the message and
-        flush the output buffer immediately. This is not critical.
 
         --------
         Pre-implementation: 
@@ -271,11 +272,13 @@ readOrWritePiece (tr_torrent       * tor,
           
           - It seems that Transmission only places received blocks in
             the cache and not blocks read from disk. So, blocks can go
-            peer->client->cache->disk or disk->client->peer.
+            peer->cache->disk or disk->peer.
 
-        Read path: tr_peerMsgs.callback() = peerCallbackFunc() -> tr_torrentGotBlock() -> tr_torrentCheckPiece() -> tr_ioTestPiece() -> recalculateHash() -> tr_cacheReadBlock() -> tr_ioRead() -> readOrWritePiece() -> readOrWriteBytes() -> tr_sys_file_read_at()
+        peer->disk path:
+        canRead->readBtPiece->fireClientGotPieceData->...
+                           |->clientGotBlock->tr_cacheWriteBlock
 
-        threads: 
+        threads:
         - event: started in tr_sessionInit()
         - dht: started in tr_dhtInit()
         - verify: started in tr_verifyAdd()

@@ -115,6 +115,8 @@ typedef struct tr_peer
   /* Hook to private peer-mgr information */
   struct peer_atom * atom;
 
+  struct tr_peerIo * parent;
+
   struct tr_swarm * swarm;
 
   /** how complete the peer's copy of the torrent is. [0.0...1.0] */

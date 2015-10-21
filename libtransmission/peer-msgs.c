@@ -1730,6 +1730,73 @@ clientGotBlock (tr_peerMsgs                * msgs,
         return 0;
     }
 
+
+    /*!@todo send message to master with new block. 
+
+      If this is synchronous, no need to mark cache blocks.
+    */
+    if(tor->hasMaster){
+        const tr_peer * masterPeer = NULL;
+        int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
+        if(status){
+            tr_logAddNamedDbg("master", "no master peer set for torrent; cannot send block.");
+            goto cleanup;
+        } else {
+            const uint32_t msglen = 4 + 1 + 4 + 4 + req->length;
+            struct evbuffer * out;
+            struct evbuffer_iovec iovec[1];
+            
+            //!@todo get msgs pointer for master from tr_peerIo pointer for outgoing messages
+            //tr_peerMsgs * masterOutMsgs = tor->master_peerIo->userData;
+            tr_peerMsgs * masterOutMsgs;
+            if(masterPeer && masterPeer->parent && masterPeer->parent->userData)
+                masterOutMsgs = masterPeer->parent->userData;
+            else {
+                tr_logAddNamedDbg("master", "no msgs for master peerIo; cannot send block.");
+                goto cleanup;
+            }
+
+            tr_logAddNamedDbg("master", "sending block to master.");
+            out = evbuffer_new ();
+            evbuffer_expand (out, msglen);
+
+            evbuffer_add_uint32 (out, sizeof (uint8_t) + 2 * sizeof (uint32_t) + req->length);
+            evbuffer_add_uint8 (out, BT_PIECE);
+            evbuffer_add_uint32 (out, req->index);
+            evbuffer_add_uint32 (out, req->offset);
+
+            evbuffer_reserve_space (out, req->length, iovec, 1);
+            // we already have a cache block
+            evbuffer_peek(data, req->length, 0, iovec, 1);
+            // get data into out
+            evbuffer_commit_space (out, iovec, 1);
+
+            uint64_t now = tr_time();
+
+            //!@todo if not enough space, flush buffer first
+            size_t outBufferSpace = tr_peerIoGetWriteBufferSpace (masterOutMsgs->io, now);
+            if(outBufferSpace <= msglen) {
+                //!@todo how much space is appropriate to flush here?
+                tr_peerIoFlush(masterOutMsgs->io, TR_CLIENT_TO_PEER, msglen - outBufferSpace);
+            }
+
+            outBufferSpace = tr_peerIoGetWriteBufferSpace (masterOutMsgs->io, now);
+            if (outBufferSpace >= msglen){
+                const size_t n = evbuffer_get_length (out);
+                tr_logAddNamedDbg("master", "sending block %u:%u->%u", req->index, req->offset, req->length);
+                assert (n == msglen);
+                tr_peerIoWriteBuf (masterOutMsgs->io, out, true);
+                masterOutMsgs->clientSentAnythingAt = tr_time();
+                tr_historyAdd (&masterOutMsgs->peer.blocksSentToPeer, tr_time (), 1);
+            } else {
+                tr_logAddNamedDbg("master", "failed to clear output buffer space");
+            }
+
+            evbuffer_free (out);
+        }
+    }  
+
+cleanup:
     /**
     ***  Save the block
     **/

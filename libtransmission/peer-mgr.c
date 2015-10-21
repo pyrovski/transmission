@@ -2371,6 +2371,45 @@ tr_peerMgrGetPeers (tr_torrent   * tor,
   return count;
 }
 
+//!@todo
+int
+tr_peerMgrGetMasterPeer (tr_torrent    * tor,
+                         const tr_peer **setmePeer)
+{
+  int count = 0;
+  int atomCount = 0;
+  const tr_swarm * s = tor->swarm;
+
+  assert (tr_isTorrent (tor));
+
+  if(!tor->hasMaster){
+      tr_logAddNamedDbg("master", "this torrent has no master");
+      return 1;
+  }
+
+  managerLock (s->manager);
+
+  /**
+  ***  build a list of atoms
+  **/
+
+  //if (list_mode == TR_PEERS_CONNECTED) /* connected peers only */
+    {
+        int i;
+        const tr_peer ** peers = (const tr_peer **) tr_ptrArrayBase (&s->peers);
+        atomCount = tr_ptrArraySize (&s->peers);
+        for (i=0; i<atomCount; ++i){
+            if(!tr_address_compare(&peers[i]->atom->addr, &tor->master)){
+                *setmePeer = peers[i];
+                return 0;
+            }
+        }
+    }
+
+  managerUnlock (s->manager);
+  return count;
+}
+
 static void atomPulse      (evutil_socket_t, short, void *);
 static void bandwidthPulse (evutil_socket_t, short, void *);
 static void rechokePulse   (evutil_socket_t, short, void *);

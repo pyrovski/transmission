@@ -766,6 +766,7 @@ torrentInitFromInfo (tr_torrent * tor)
       bool status = tr_address_from_string(&tor->master, info->master);
       tr_logAddNamedDbg("master", "set to %s: %d", info->master, status);
   }
+  //tor->master_peerIo = NULL;
 
   tor->blockSize = tr_getBlockSize (info->pieceSize);
 
@@ -897,6 +898,7 @@ torrentInit (tr_torrent * tor, const tr_ctor * ctor)
           tor->hasMaster = false;
       tr_logAddNamedDbg("master", "set to %s: %d", master, status);
   }
+  //tor->master_peerIo = NULL;
 
   tr_bandwidthConstruct (&tor->bandwidth, session, &session->bandwidth);
 
@@ -1598,6 +1600,10 @@ freeTorrent (tr_torrent * tor)
 
   tr_cpDestruct (&tor->completion);
 
+  //if(tor->master_peerIo)
+  //    tr_peerIoUnref(tor->master_peerIo);
+
+  //tr_free (tor->master_peerIo);
   tr_free (tor->downloadDir);
   tr_free (tor->incompleteDir);
 

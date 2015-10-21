@@ -41,3 +41,5 @@ TAGS
 *~
 configure
 *.in
+depcomp
+missing

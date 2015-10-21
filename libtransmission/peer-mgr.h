@@ -148,6 +148,9 @@ int          tr_peerMgrGetPeers             (tr_torrent          * tor,
                                              uint8_t               peer_list_mode,
                                              int                   max_peer_count);
 
+int          tr_peerMgrGetMasterPeer        (tr_torrent         * tor,
+                                             const tr_peer      **setmePeer);
+
 void         tr_peerMgrStartTorrent         (tr_torrent          * tor);
 
 void         tr_peerMgrStopTorrent          (tr_torrent          * tor);

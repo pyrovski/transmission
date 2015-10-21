@@ -40,7 +40,7 @@ static void tier_build_log_name (const struct tr_tier * tier,
       if (tr_logGetDeepEnabled ()) \
         { \
           char name[128]; \
-          tier_build_log_name (tier, name, sizeof (name)); \
+          tier_build_log_name (tier, name, sizeof (name));       \
           tr_logAddDeep (__FILE__, __LINE__, name, __VA_ARGS__); \
         } \
     } \
