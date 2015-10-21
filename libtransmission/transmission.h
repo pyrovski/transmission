@@ -692,7 +692,7 @@ bool       tr_sessionGetPaused      (const tr_session *);
 void       tr_sessionSetMaster (tr_session * session, bool isMaster);
 bool       tr_sessionGetMaster (const tr_session * session);
 
-void tr_sessionSetSlaves(tr_session * session, const char * slaves);
+void         tr_sessionSetSlaves(tr_session * session, const char * slaves);
 const char * tr_sessionGetSlaves(const tr_session * session);
 
 void       tr_sessionSetDeleteSource (tr_session *, bool deleteSource);

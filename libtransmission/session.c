@@ -1717,7 +1717,8 @@ tr_sessionSetSlaves (tr_session * session, const char * slaves)
 
     tr_logAddNamedDbg("master", "setting slaves: %s", slaves);
 
-    session->slaves = slaves;
+    tr_free(session->slaves);
+    session->slaves = tr_strdup(slaves);
 }
 
 const char *
@@ -1982,6 +1983,7 @@ tr_sessionClose (tr_session * session)
   tr_free (session->incompleteDir);
   tr_free (session->blocklist_url);
   tr_free (session->peer_congestion_algorithm);
+  tr_free (session->slaves);
   tr_free (session);
 }
 

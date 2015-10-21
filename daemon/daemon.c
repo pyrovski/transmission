@@ -424,6 +424,8 @@ parse_args (int           argc,
                       break;
             case 831: tr_variantDictAddBool (settings, TR_KEY_utp_enabled, false);
                       break;
+            case 994: tr_variantDictAddBool (settings, TR_KEY_master, true);
+                      break;
             default:  tr_getopt_usage (MY_NAME, getUsage (), options);
                       *exit_code = 0;
                       return false;
