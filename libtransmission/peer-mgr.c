@@ -2404,8 +2404,14 @@ tr_peerMgrGetMasterPeer (tr_torrent    * tor,
         int i;
         const tr_peer ** peers = (const tr_peer **) tr_ptrArrayBase (&s->peers);
         atomCount = tr_ptrArraySize (&s->peers);
+        const char * buf;
+        buf = tr_peerIoAddrStr(&tor->master, tor->masterPort);
+        //tr_logAddNamedDbg("slave", "looking for master peer %s", buf);
         for (i=0; i<atomCount; ++i){
+            //tr_logAddNamedDbg("master", "candidate peer %s", 
+            //tr_peerIoAddrStr(&peers[i]->atom->addr, peers[i]->atom->port));
             if(!tr_address_compare(&peers[i]->atom->addr, &tor->master)){
+	      //!@todo compare port
                 *setmePeer = peers[i];
                 return 0;
             }
@@ -3995,6 +4001,12 @@ getPeerCandidateScore (const tr_torrent * tor, const struct peer_atom * atom, ui
 
   /* salt */
   score = addValToKey (score, 8, salt);
+
+#ifdef MASTER_DEBUG
+  if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master)){
+      tr_logAddNamedDbg("slave", "candidate score for master: 0x%llX", score);
+  }
+#endif
 
   return score;
 }
