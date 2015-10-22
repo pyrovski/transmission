@@ -307,6 +307,7 @@ tr_netOpenPeerUTPSocket (tr_session        * session,
 {
   struct UTPSocket * ret = NULL;
 
+  //!@todo master peer getting caught here; can't run master & slave both on localhost?
   if (tr_address_is_valid_for_peers (addr, port))
     {
       struct sockaddr_storage ss;

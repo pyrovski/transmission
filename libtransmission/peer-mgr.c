@@ -432,6 +432,11 @@ getExistingAtom (const tr_swarm   * cswarm,
   return tr_ptrArrayFindSorted (&swarm->pool, addr, comparePeerAtomToAddress);
 }
 
+struct peer_atom*
+getMasterAtomFromTorrent (const tr_torrent *tor){
+    return getExistingAtom(tor->swarm, &tor->master);
+}
+
 static bool
 peerIsInUse (const tr_swarm * cs, const struct peer_atom * atom)
 {
@@ -1842,6 +1847,8 @@ getDefaultShelfLife (uint8_t from)
         case TR_PEER_FROM_PEX      : return 60 * 60 * 2;
         case TR_PEER_FROM_RESUME   : return 60 * 60;
         case TR_PEER_FROM_LPD      : return 10 * 60;
+        //!@todo peers from master should last forever
+        //case TR_PEER_FROM_MASTER   :
         default                    : return 60 * 60;
     }
 }
@@ -2376,7 +2383,6 @@ int
 tr_peerMgrGetMasterPeer (tr_torrent    * tor,
                          const tr_peer **setmePeer)
 {
-  int count = 0;
   int atomCount = 0;
   const tr_swarm * s = tor->swarm;
 
@@ -2407,7 +2413,7 @@ tr_peerMgrGetMasterPeer (tr_torrent    * tor,
     }
 
   managerUnlock (s->manager);
-  return count;
+  return -1;
 }
 
 static void atomPulse      (evutil_socket_t, short, void *);
@@ -2545,18 +2551,28 @@ tr_peerMgrAddTorrent (tr_peerMgr * manager, tr_torrent * tor)
 
   tor->swarm = swarmNew (manager, tor);
 
-  // peers have both tor->swarm->pool (peer_atom) and tor->swarm->peers (tr_peerMsgs)
   if(tor->hasMaster){
-      //!@todo slaves: add master as peer
-      struct peer_atom atom;
-      atom.fromFirst = TR_PEER_FROM_MASTER;
-      atom.seedProbability = -1;
-      atom.blocklisted = false;
-      atom.port = tor->masterPort;
+      //! slaves: add master as peer
 
-      initiateConnection(manager, tor->swarm, &atom);
+      const uint8_t flags = 0; //!@todo are these important?
+      const int8_t seedProbability = -1;
+      const uint8_t from = TR_PEER_FROM_INCOMING;
+
+      managerLock(manager);
+      ensureAtomExists(tor->swarm, &tor->master, tor->masterPort, flags, seedProbability, from);
+      managerUnlock(manager);
+      struct peer_atom * atom;
+      atom = getExistingAtom(tor->swarm, &tor->master);
+      if(atom == NULL){
+          tr_logAddNamedDbg("master", "failed to get master atom from swarm");
+          return;
+      }
+      tr_logAddNamedDbg("master", "initiating connection to master");
+      initiateConnection(manager, tor->swarm, atom);
   } else if(tor->session->masterMode){
-      //!@todo master: add slaves as peers
+      /*!@todo master: add slaves as peers;
+        This should come after slaves have been contacted over RPC.
+       */
   }
 }
 

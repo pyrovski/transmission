@@ -1909,8 +1909,8 @@ enum
     TR_PEER_FROM_PEX,           /* peers found from PEX */
     TR_PEER_FROM_RESUME,        /* peers found in the .resume file */
     TR_PEER_FROM_LTEP,          /* peer address provided in an LTEP handshake */
-    //!@todo handle this
-    TR_PEER_FROM_MASTER,        /* peer address is master */
+    //!@todo implement; master peer is permanent
+    TR_PEER_FROM_MASTER,        /* peer from master */
     TR_PEER_FROM__MAX
 };
 

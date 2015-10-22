@@ -117,7 +117,7 @@ struct tr_session
     bool                         scrapePausedTorrents;
 
     bool                         masterMode;
-    const char                   *slaves;
+    char                   *slaves;
 
     uint8_t                      peer_id_ttl_hours;
 

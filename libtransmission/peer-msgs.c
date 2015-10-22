@@ -1737,11 +1737,18 @@ clientGotBlock (tr_peerMsgs                * msgs,
     */
     if(tor->hasMaster){
         const tr_peer * masterPeer = NULL;
+
         int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
         if(status){
-            tr_logAddNamedDbg("master", "no master peer set for torrent; cannot send block.");
-            goto cleanup;
-        } else {
+            struct peer_atom * atom;
+            atom = getMasterAtomFromTorrent(msgs->torrent);
+            //if(!atom->peer){
+                tr_logAddNamedDbg("master", "no master peer set for torrent; cannot send block.");
+                goto cleanup;
+            //}
+        }
+        
+        {
             const uint32_t msglen = 4 + 1 + 4 + 4 + req->length;
             struct evbuffer * out;
             struct evbuffer_iovec iovec[1];
