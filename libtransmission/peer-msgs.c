@@ -1756,10 +1756,11 @@ clientGotBlock (tr_peerMsgs                * msgs,
             //!@todo get msgs pointer for master from tr_peerIo pointer for outgoing messages
             //tr_peerMsgs * masterOutMsgs = tor->master_peerIo->userData;
             tr_peerMsgs * masterOutMsgs;
-            if(masterPeer && masterPeer->parent && masterPeer->parent->userData)
+            if(masterPeer && masterPeer->parent && masterPeer->parent->userData){
+                msdbg("send block to master.");
                 masterOutMsgs = masterPeer->parent->userData;
-            else {
-                tr_logAddNamedDbg("master", "no msgs for master peerIo; cannot send block.");
+            } else {
+                msdbg("no msgs for master peerIo; cannot send block.");
                 goto cleanup;
             }
 

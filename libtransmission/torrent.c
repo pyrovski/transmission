@@ -565,9 +565,10 @@ onTrackerResponse (tr_torrent * tor, const tr_tracker_event * event, void * unus
           else
             tr_logAddTorDbg (tor, "Got %"TR_PRIuSIZE" peers from tracker", event->pexCount);
 
-          for (i = 0; i < event->pexCount; ++i)
+          for (i = 0; i < event->pexCount; ++i){
             tr_peerMgrAddPex (tor, TR_PEER_FROM_TRACKER, &event->pex[i], seedProbability);
-
+            msdbg("peer %s:%d", tr_address_to_string(&event->pex[i].addr), ntohs(event->pex[i].port));
+          }
           break;
         }
 

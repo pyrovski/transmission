@@ -16,6 +16,8 @@
 #ifndef TR_TRANSMISSION_H
 #define TR_TRANSMISSION_H 1
 
+#define MASTER_DEBUG
+
 #ifdef __cplusplus
 extern "C" {
 #endif

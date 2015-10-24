@@ -497,7 +497,7 @@ tr_metainfoParseImpl (const tr_session  * session,
   /* master */
   len = 0;
   tr_free (inf->master);
-  tr_logAddNamedDbg("master", "master present: %d",
+  tr_logAddNamedDbg("master", "present: %d",
                     tr_variantDictFindStr (meta, TR_KEY_master, &str, &len));
   if (tr_variantDictFindStr (meta, TR_KEY_master, &str, &len)){
       inf->master = tr_utf8clean (str, len);
@@ -507,7 +507,7 @@ tr_metainfoParseImpl (const tr_session  * session,
   /* master port */
   len = 0;
   tr_free (inf->masterPort);
-  tr_logAddNamedDbg("master", "master port supplied: %d",
+  tr_logAddNamedDbg("master", "port supplied: %d",
                     tr_variantDictFindStr (meta, TR_KEY_masterPort, &str, &len));
   if(tr_variantDictFindStr (meta, TR_KEY_masterPort, &str, &len)){
       inf->masterPort = tr_utf8clean (str, len);

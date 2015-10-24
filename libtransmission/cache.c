@@ -168,7 +168,7 @@ static int
 flushContiguous (tr_cache * cache, int pos, int n)
 {
   int i;
-  int err = 0;
+  int err;
   uint8_t * buf = tr_new (uint8_t, n * MAX_BLOCK_SIZE);
   uint8_t * walk = buf;
   struct cache_block ** blocks = (struct cache_block**) tr_ptrArrayBase (&cache->blocks);
@@ -181,14 +181,19 @@ flushContiguous (tr_cache * cache, int pos, int n)
   for (i=pos; i<pos+n; ++i)
     {
       b = blocks[i];
-      evbuffer_copyout (b->evbuf, walk, b->length);
+      if(!tor->hasMaster)
+          evbuffer_copyout (b->evbuf, walk, b->length);
       walk += b->length;
       evbuffer_free (b->evbuf);
       tr_free (b);
     }
   tr_ptrArrayErase (&cache->blocks, pos, pos+n);
 
-  err = tr_ioWrite (tor, piece, offset, walk-buf, buf);
+  if(!tor->hasMaster){
+      msdbg("Torrent %s writing to disk", tr_torrentName(tor));
+      err = tr_ioWrite (tor, piece, offset, walk-buf, buf);
+  } else
+      err = 0;
   tr_free (buf);
 
   //!@todo does not apply to master writes
