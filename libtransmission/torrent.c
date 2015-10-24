@@ -768,8 +768,8 @@ torrentInitFromInfo (tr_torrent * tor)
       tr_logAddNamedDbg("master", "set to %s: %d", info->master, status);
 
       if(info->masterPort){
-          tor->masterPort = atoi(info->masterPort);
-          tr_logAddNamedDbg("master", "port set to %s: %d", info->masterPort, tor->masterPort);
+          tor->masterPort = htons(atoi(info->masterPort));
+          tr_logAddNamedDbg("master", "port set to %s: %d", info->masterPort, ntohs(tor->masterPort));
       }
   }
   //tor->master_peerIo = NULL;
@@ -905,8 +905,8 @@ torrentInit (tr_torrent * tor, const tr_ctor * ctor)
           tr_logAddNamedDbg("master", "set to %s: %d", master, status);
           status = tr_ctorGetMasterPort (ctor, TR_FORCE, &masterPort);
           if(!status){
-              tor->masterPort = atoi(masterPort);
-              tr_logAddNamedDbg("master", "port set to %s: %d", masterPort, tor->masterPort);
+              tor->masterPort = htons(atoi(masterPort));
+              tr_logAddNamedDbg("master", "port set to %s: %d", masterPort, ntohs(tor->masterPort));
           } else
               tr_logAddNamedDbg("master", "failed to get port from constructor: %d", status);
       } else {
