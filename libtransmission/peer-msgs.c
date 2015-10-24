@@ -1743,7 +1743,9 @@ clientGotBlock (tr_peerMsgs                * msgs,
             struct peer_atom * atom;
             atom = getMasterAtomFromTorrent(msgs->torrent);
             //if(!atom->peer){
+            tr_logSetQueueEnabled (0);
             tr_logAddNamedDbg("master", "no master peer set for torrent; cannot send block.");
+            exit(1);
             goto cleanup;
             //}
         }
@@ -1757,10 +1759,14 @@ clientGotBlock (tr_peerMsgs                * msgs,
             //tr_peerMsgs * masterOutMsgs = tor->master_peerIo->userData;
             tr_peerMsgs * masterOutMsgs;
             if(masterPeer && masterPeer->parent && masterPeer->parent->userData){
-                msdbg("send block to master.");
+            tr_logSetQueueEnabled (0);
+                msdbg("sending block to master.");
+                exit(1);
                 masterOutMsgs = masterPeer->parent->userData;
             } else {
+            tr_logSetQueueEnabled (0);
                 msdbg("no msgs for master peerIo; cannot send block.");
+                exit(1);
                 goto cleanup;
             }
 

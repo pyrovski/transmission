@@ -161,12 +161,16 @@ tr_logGetTimeStr (char * buf, size_t buflen)
 bool
 tr_logGetDeepEnabled (void)
 {
+#ifdef MASTER_DEBUG
+  return true;
+#else
   static int8_t deepLoggingIsActive = -1;
 
   if (deepLoggingIsActive < 0)
     deepLoggingIsActive = IsDebuggerPresent () || (tr_logGetFile () != TR_BAD_SYS_FILE);
 
   return deepLoggingIsActive != 0;
+#endif
 }
 
 void

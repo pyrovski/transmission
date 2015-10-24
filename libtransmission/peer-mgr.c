@@ -226,6 +226,37 @@ typedef struct tr_swarm
 }
 tr_swarm;
 
+void logSwarm(tr_swarm *s){
+    assert(s);
+    
+    tr_handshake * handshake;
+    //struct peer_atom * atom = (struct peer_atom *)s->pool;
+    //tr_peerMsgs * peer = (tr_peerMsgs *)s->peers;
+
+    int i;
+    msdbg("swarm: %d handshakes, %d atoms, %d peers",
+          s->outgoingHandshakes.n_items,
+          s->pool.n_items,
+          s->peers.n_items);
+    for(i = 0; i < s->outgoingHandshakes.n_items; i++){
+        int port;
+        handshake = (tr_handshake *)tr_ptrArrayNth(&s->outgoingHandshakes, i);
+        const tr_address * addr;
+        addr = tr_handshakeGetAddr(handshake, &port);
+        msdbg("swarm handshake %d: %s:%d", i, tr_address_to_string(addr), ntohs(port));
+    }
+    
+    for(i = 0; i < s->pool.n_items; i++){
+        //!@todo
+    }
+    for(i = 0; i < s->peers.n_items; i++){
+        //!@todo
+    }
+    //msdbg("existing swarm %d: %s", , );
+    //tier->tor->swarm
+
+}
+
 struct tr_peerMgr
 {
   tr_session    * session;
@@ -1962,6 +1993,9 @@ myHandshakeDoneCB (tr_handshake  * handshake,
   assert (io);
   assert (tr_isBool (ok));
 
+  msdbg("handshake callback for %s:%d; connected: %d", tr_address_to_string(&io->addr),
+        ntohs(io->port), isConnected);
+
   s = tr_peerIoHasTorrentHash (io)
     ? getExistingSwarm (manager, tr_peerIoGetTorrentHash (io))
     : NULL;
@@ -2565,6 +2599,8 @@ tr_peerMgrAddTorrent (tr_peerMgr * manager, tr_torrent * tor)
       const uint8_t from = TR_PEER_FROM_INCOMING;
 
       managerLock(manager);
+      /*!@todo I think this might get overwritten; this is happening
+         before resume, verification, LPD, and tracker announce. */
       ensureAtomExists(tor->swarm, &tor->master, tor->masterPort, flags, seedProbability, from);
       managerUnlock(manager);
       struct peer_atom * atom;
@@ -3875,8 +3911,15 @@ atomPulse (evutil_socket_t foo UNUSED, short bar UNUSED, void * vmgr)
             }
 
           /* free the culled atoms */
-          while (i<testCount)
+          while (i<testCount){
+#ifdef MASTER_DEBUG
+              if(tor->hasMaster &&
+                 !tr_address_compare(&test[i]->addr, &tor->master) &&
+                 test[i]->port == tor->masterPort)
+                  msdbg("culling master peer!");
+#endif
             tr_free (test[i++]);
+          }
 
           /* rebuild Torrent.pool with what's left */
           tr_ptrArrayDestruct (&s->pool, NULL);

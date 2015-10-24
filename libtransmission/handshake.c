@@ -1190,6 +1190,9 @@ tr_handshakeNew (tr_peerIo           * io,
   tr_handshake * handshake;
   tr_session * session = tr_peerIoGetSession (io);
 
+  msdbg("starting handshake for %s:%d", tr_address_to_string(&io->addr),
+        ntohs(io->port));
+  
   handshake = tr_new0 (tr_handshake, 1);
   handshake->io = io;
   handshake->crypto = tr_peerIoGetCrypto (io);

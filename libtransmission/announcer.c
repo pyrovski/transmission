@@ -781,6 +781,9 @@ tier_announce_remove_trailing (tr_tier * tier, tr_announce_event e)
         --tier->announce_event_count;
 }
 
+typedef struct tr_swarm tr_swarm;
+void logSwarm(tr_swarm *s);
+
 static void
 tier_announce_event_push (tr_tier            * tier,
                           tr_announce_event    e,
@@ -828,6 +831,7 @@ tier_announce_event_push (tr_tier            * tier,
 
     dbgmsg_tier_announce_queue (tier);
     dbgmsg (tier, "announcing in %d seconds", (int)difftime (announceAt,tr_time ()));
+    logSwarm(tier->tor->swarm);
 }
 
 static tr_announce_event
