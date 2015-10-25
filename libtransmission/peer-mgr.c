@@ -228,29 +228,35 @@ tr_swarm;
 
 void logSwarm(tr_swarm *s){
     assert(s);
-    
-    tr_handshake * handshake;
-    //struct peer_atom * atom = (struct peer_atom *)s->pool;
-    //tr_peerMsgs * peer = (tr_peerMsgs *)s->peers;
 
     int i;
+    const tr_address * addr;
+    tr_port port;
+
     msdbg("swarm: %d handshakes, %d atoms, %d peers",
           s->outgoingHandshakes.n_items,
           s->pool.n_items,
           s->peers.n_items);
     for(i = 0; i < s->outgoingHandshakes.n_items; i++){
-        int port;
+        tr_handshake * handshake;
         handshake = (tr_handshake *)tr_ptrArrayNth(&s->outgoingHandshakes, i);
-        const tr_address * addr;
         addr = tr_handshakeGetAddr(handshake, &port);
         msdbg("swarm handshake %d: %s:%d", i, tr_address_to_string(addr), ntohs(port));
     }
     
     for(i = 0; i < s->pool.n_items; i++){
-        //!@todo
+        struct peer_atom * atom;
+        atom = (struct peer_atom *)tr_ptrArrayNth(&s->pool, i);
+        msdbg("swarm atom: %d: %s", i, tr_atomAddrStr(atom));
     }
     for(i = 0; i < s->peers.n_items; i++){
-        //!@todo
+        tr_peerMsgs * peer = (tr_peerMsgs *)tr_ptrArrayNth(&s->peers, i);
+        msdbg("swarm peerIo %d: choked: %d, interested: %d, clientChoked: %d, clientInterested: %d",
+              i,
+              tr_peerMsgsIsPeerChoked(peer),
+              tr_peerMsgsIsPeerInterested(peer),
+              tr_peerMsgsIsClientChoked(peer),
+              tr_peerMsgsIsClientInterested(peer));
     }
     //msdbg("existing swarm %d: %s", , );
     //tier->tor->swarm
@@ -1971,6 +1977,10 @@ createBitTorrentPeer (tr_torrent       * tor,
   msgs = PEER_MSGS (peer);
   tr_peerMsgsUpdateActive (msgs, TR_UP);
   tr_peerMsgsUpdateActive (msgs, TR_DOWN);
+
+  // apparently, msgs and peerIos are the same thing?
+  if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master) && atom->port == tor->masterPort)
+      msdbg("created peerIo: 0x%p, msgs: 0x%p", peer, msgs);
 }
 
 
@@ -2609,8 +2619,10 @@ tr_peerMgrAddTorrent (tr_peerMgr * manager, tr_torrent * tor)
           tr_logAddNamedDbg("master", "failed to get master atom from swarm");
           return;
       }
+      /*!@todo if torrent is not started yet, this handshake should not be happening.
       tr_logAddNamedDbg("master", "initiating connection to master");
       initiateConnection(manager, tor->swarm, atom);
+      */
   } else if(tor->session->masterMode){
       /*!@todo master: add slaves as peers;
         This should come after slaves have been contacted over RPC.
@@ -3374,6 +3386,9 @@ shouldPeerBeClosed (const tr_swarm   * s,
       return true;
     }
 
+  if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master))
+      return false;
+
   /* disconnect if we're both seeds and enough time has passed for PEX */
   if (tr_torrentIsSeed (tor) && tr_peerIsSeed (peer))
     return !tr_torrentAllowsPex (tor) || (now-atom->time>=30);
@@ -4000,6 +4015,14 @@ getPeerCandidateScore (const tr_torrent * tor, const struct peer_atom * atom, ui
 {
   uint64_t i;
   uint64_t score = 0;
+
+  if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master)){
+#ifdef MASTER_DEBUG
+      tr_logAddNamedDbg("slave", "candidate score for master: 0x%llX", score);
+#endif
+      return score;
+  }
+
   const bool failed = atom->lastConnectionAt < atom->lastConnectionAttemptAt;
 
   /* prefer peers we've connected to, or never tried, over peers we failed to connect to. */
@@ -4044,12 +4067,6 @@ getPeerCandidateScore (const tr_torrent * tor, const struct peer_atom * atom, ui
 
   /* salt */
   score = addValToKey (score, 8, salt);
-
-#ifdef MASTER_DEBUG
-  if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master)){
-      tr_logAddNamedDbg("slave", "candidate score for master: 0x%llX", score);
-  }
-#endif
 
   return score;
 }

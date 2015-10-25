@@ -867,7 +867,7 @@ torrentInit (tr_torrent * tor, const tr_ctor * ctor)
   bool doStart;
   uint64_t loaded;
   const char * dir;
-  const char * master;
+  const char * master = NULL;
   const char * masterPort;
   bool isNewTorrent;
   tr_session * session = tr_ctorGetSession (ctor);
@@ -903,8 +903,10 @@ torrentInit (tr_torrent * tor, const tr_ctor * ctor)
           tor->hasMaster = true;
           
           tr_logAddNamedDbg("master", "set to %s: %d", master, status);
-          status = tr_ctorGetMasterPort (ctor, TR_FORCE, &masterPort);
-          if(!status){
+          
+          if(!tr_ctorGetMasterPort (ctor, TR_FORCE, &masterPort) ||
+             !tr_ctorGetMasterPort (ctor, TR_FALLBACK, &masterPort))
+          {
               tor->masterPort = htons(atoi(masterPort));
               tr_logAddNamedDbg("master", "port set to %s: %d", masterPort, ntohs(tor->masterPort));
           } else
@@ -924,6 +926,7 @@ torrentInit (tr_torrent * tor, const tr_ctor * ctor)
 
   tor->finishedSeedingByIdle = false;
 
+  //!@todo this is initiating a slave->master connection. Too early?
   tr_peerMgrAddTorrent (session->peerMgr, tor);
 
   assert (!tor->downloadedCur);

@@ -62,7 +62,7 @@ void tr_logAddMessage (const char   * file,
 #ifdef MASTER_DEBUG
 #define msdbg(...) do {tr_logAddNamedDbg("master", __VA_ARGS__);} while(0)
 #else
-#define msdbg()
+#define msdbg() do {} while(0)
 #endif
 
 #define tr_logAddTorErr(tor, ...)               \

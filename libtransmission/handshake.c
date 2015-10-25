@@ -1178,6 +1178,9 @@ gotError (tr_peerIo  * io,
 static void
 handshakeTimeout (evutil_socket_t foo UNUSED, short bar UNUSED, void * handshake)
 {
+    msdbg("handshake timeout: %s",
+          tr_peerIoGetAddrStr(((const struct tr_handshake *)handshake)->io));
+
   tr_handshakeAbort (handshake);
 }
 
