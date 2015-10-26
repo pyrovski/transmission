@@ -1729,23 +1729,22 @@ clientGotBlock (tr_peerMsgs                * msgs,
         return 0;
     }
 
-    //!@todo slaves will request blocks from master
-    if (tr_torrentPieceIsComplete (msgs->torrent, req->index)) {
-        dbgmsg (msgs, "we did ask for this message, but the piece is already complete...");
-        return 0;
-    }
-
-    /*!@send message to master with new block. 
-
-      If this is synchronous, no need to mark cache blocks.
-    */
-    if(tor->hasMaster){
+    // slaves will request blocks from master that are marked as complete but not stored, as slaves don't use disk
+    if(!tor->hasMaster){
+        if (tr_torrentPieceIsComplete (msgs->torrent, req->index)) {
+            dbgmsg (msgs, "we did ask for this message, but the piece is already complete...");
+            return 0;
+        }
+    } else {
         bool peerIsMaster = 
             !tr_address_compare(tr_peerAddress(&msgs->peer), &tor->master)
             && tr_peerPort(&msgs->peer) == tor->masterPort;
         if(peerIsMaster){
             //!@todo check received requests from other peers for this block. If they exist and have buffer space, send a message.
         } else { // Avoid forwarding to master if the block came from master.
+            /*!@send message to master with new block. 
+              If this is synchronous, no need to mark cache blocks.
+            */
             const tr_peer * masterPeer = NULL;
 
             int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
