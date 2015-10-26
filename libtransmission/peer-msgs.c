@@ -1739,7 +1739,7 @@ clientGotBlock (tr_peerMsgs                * msgs,
       If this is synchronous, no need to mark cache blocks.
     */
     if(tor->hasMaster &&
-       !tr_address_compare(tr_peerAddress(&msgs->peer), &tor->master)
+       tr_address_compare(tr_peerAddress(&msgs->peer), &tor->master)
        && tr_peerPort(&msgs->peer) != tor->masterPort){
         const tr_peer * masterPeer = NULL;
 
