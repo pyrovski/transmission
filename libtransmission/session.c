@@ -1812,7 +1812,7 @@ static const char * tr_slaves_to_str(const tr_list * slaves){
         const char * address = tr_address_to_string(&slave->addr);
 
         char * entry = tr_strdup_printf("%s:%u:%s:%s",
-                                        address, slave->rpcPort,
+                                        address, ntohs(slave->rpcPort),
                                         slave->rpcUsername, slave->rpcPassword);
         if(result){
             char * oldResult = result;
