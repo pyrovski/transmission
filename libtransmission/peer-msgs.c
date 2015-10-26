@@ -1896,7 +1896,8 @@ updateDesiredRequestCount (tr_peerMsgs * msgs)
     /* there are lots of reasons we might not want to request any blocks... */
     if (tr_torrentIsSeed (torrent) || !tr_torrentHasMetadata (torrent)
                                     || msgs->client_is_choked
-                                    || !msgs->client_is_interested)
+                                    || !msgs->client_is_interested
+                                    || tor->session->masterMode)
     {
         msgs->desiredRequestCount = 0;
     }
