@@ -24,6 +24,7 @@
 #include "stats.h" /* tr_statsFileCreated () */
 #include "torrent.h"
 #include "utils.h"
+#include "peer-mgr.h" /* masterRequestListAdd() */
 
 /****
 *****  Low-level IO functions
@@ -212,7 +213,12 @@ readOrWritePiece (tr_torrent       * tor,
     return EINVAL;
 
   if(tor->hasMaster){
-      
+      if(buf && ioMode == TR_IO_READ){
+          msdbg("skipping read; fix caller");
+
+          //!@todo buflen is ignored
+          tr_masterRequestListAdd(tor, pieceIndex, pieceOffset);
+      }
       /*!@todo read or write piece from/to master.
 
         fillOutputBuffer() constructs messages, but it takes
@@ -287,7 +293,6 @@ readOrWritePiece (tr_torrent       * tor,
         asynchronous. This is already the case with libevent, but the
         current implementation expects synchronous reads from files.
        */
-      
       
       return err;
   }

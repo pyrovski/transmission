@@ -1746,8 +1746,8 @@ clientGotBlock (tr_peerMsgs                * msgs,
 
         int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
         if(status){
-            struct peer_atom * atom;
-            atom = getMasterAtomFromTorrent(msgs->torrent);
+            //struct peer_atom * atom;
+            //atom = getMasterAtomFromTorrent(msgs->torrent);
             //if(!atom->peer){
             tr_logSetQueueEnabled (0);
             tr_logAddNamedDbg("master", "no master peer set for torrent; cannot send block.");

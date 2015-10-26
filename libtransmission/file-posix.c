@@ -858,7 +858,9 @@ tr_sys_file_preallocate (tr_sys_file_t    handle,
 
 #endif
 
+#ifdef __APPLE__
 non_sparse_out:
+#endif
       errno = code;
     }
 

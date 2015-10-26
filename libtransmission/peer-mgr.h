@@ -152,7 +152,7 @@ int          tr_peerMgrGetPeers             (tr_torrent          * tor,
                                              int                   max_peer_count);
 
 int          tr_peerMgrGetMasterPeer        (tr_torrent         * tor,
-                                             const tr_peer      **setmePeer);
+                                             tr_peer      **setmePeer);
 
 void         tr_peerMgrStartTorrent         (tr_torrent          * tor);
 
@@ -191,6 +191,8 @@ void         tr_peerMgrPieceCompleted       (tr_torrent         * tor,
                                              tr_piece_index_t     pieceIndex);
 
 struct peer_atom * getMasterAtomFromTorrent (const tr_torrent *tor);
+
+void tr_masterRequestListAdd (tr_torrent * tor, tr_piece_index_t pieceIndex, uint32_t pieceOffset);
 
 /* @} */
 

@@ -851,6 +851,22 @@ requestListAdd (tr_swarm * s, tr_block_index_t block, tr_peer * peer)
                      (unsigned long)block, tr_atomAddrStr (peer->atom), s->requestCount);*/
 }
 
+void tr_masterRequestListAdd (tr_torrent * tor, tr_piece_index_t pieceIndex, uint32_t pieceOffset){
+    tr_block_index_t block = tr_block(pieceIndex, pieceOffset);
+
+    tr_peer * masterPeer = NULL;
+    int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
+    if(!status){
+        // check if master has block
+        //!@todo does this require a manager lock?
+        bool masterHasBlock = tr_bitfieldHas(&masterPeer->have, pieceIndex);
+        //
+        if(masterHasBlock)
+            requestListAdd(tor->swarm, block, masterPeer);
+    } else
+        msdbg("unable to get master peer");
+}
+
 static struct block_request *
 requestListLookup (tr_swarm * s, tr_block_index_t block, const tr_peer * peer)
 {
@@ -2449,10 +2465,9 @@ tr_peerMgrGetPeers (tr_torrent   * tor,
   return count;
 }
 
-//!@todo
 int
 tr_peerMgrGetMasterPeer (tr_torrent    * tor,
-                         const tr_peer **setmePeer)
+                         tr_peer **setmePeer)
 {
   int atomCount = 0;
   const tr_swarm * s = tor->swarm;
@@ -2473,10 +2488,9 @@ tr_peerMgrGetMasterPeer (tr_torrent    * tor,
   //if (list_mode == TR_PEERS_CONNECTED) /* connected peers only */
     {
         int i;
-        const tr_peer ** peers = (const tr_peer **) tr_ptrArrayBase (&s->peers);
+        tr_peer ** peers = (tr_peer **) tr_ptrArrayBase (&s->peers);
         atomCount = tr_ptrArraySize (&s->peers);
-        const char * buf;
-        buf = tr_peerIoAddrStr(&tor->master, tor->masterPort);
+        //const char * buf = tr_peerIoAddrStr(&tor->master, tor->masterPort);
         //tr_logAddNamedDbg("slave", "looking for master peer %s", buf);
         for (i=0; i<atomCount; ++i){
             //tr_logAddNamedDbg("master", "candidate peer %s", 
@@ -2980,6 +2994,7 @@ tr_peerMgrClearInterest (tr_torrent * tor)
 }
 
 /* does this peer have any pieces that we want? */
+//!@todo check; should master peer be forced interesting?
 static bool
 isPeerInteresting (tr_torrent     * const tor,
                    const bool     * const piece_is_interesting,
@@ -3506,6 +3521,7 @@ getReconnectIntervalSecs (const struct peer_atom * atom, const time_t now)
   return sec;
 }
 
+//!@todo log master
 static void
 removePeer (tr_swarm * s, tr_peer * peer)
 {
@@ -3529,6 +3545,7 @@ removePeer (tr_swarm * s, tr_peer * peer)
   tr_peerFree (peer);
 }
 
+//!@todo log master
 static void
 closePeer (tr_swarm * s, tr_peer * peer)
 {

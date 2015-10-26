@@ -1806,7 +1806,7 @@ tr_sessionSetSlaves (tr_session * session, const char * slaves)
 
 static const char * tr_slaves_to_str(const tr_list * slaves){
     char * result = NULL;
-    int entryLen;
+
     while(slaves){
         tr_slave * slave = (tr_slave *) slaves->data;
         const char * address = tr_address_to_string(&slave->addr);
@@ -2090,7 +2090,7 @@ tr_sessionClose (tr_session * session)
   tr_free (session->incompleteDir);
   tr_free (session->blocklist_url);
   tr_free (session->peer_congestion_algorithm);
-  tr_list_free (&session->slaves, &tr_freeSlave);
+  tr_list_free (&session->slaves, (TrListForeachFunc)&tr_freeSlave);
   tr_free (session);
 }
 
