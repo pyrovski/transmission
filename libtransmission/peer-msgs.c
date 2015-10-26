@@ -1721,6 +1721,7 @@ clientGotBlock (tr_peerMsgs                * msgs,
 
     dbgmsg (msgs, "got block %u:%u->%u", req->index, req->offset, req->length);
 
+    //!@todo if master, reject unsolicited blocks from non-slaves
     if (!tor->session->masterMode &&
         !tr_peerMgrDidPeerRequest (msgs->torrent, &msgs->peer, block))
     {
@@ -1898,7 +1899,7 @@ updateDesiredRequestCount (tr_peerMsgs * msgs)
     if (tr_torrentIsSeed (torrent) || !tr_torrentHasMetadata (torrent)
                                     || msgs->client_is_choked
                                     || !msgs->client_is_interested
-                                    || torrent->session->masterMode)
+        || (torrent->session->masterMode && !tr_isSlave(torrent->session, msgs->peer.atom)))
     {
         msgs->desiredRequestCount = 0;
     }

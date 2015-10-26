@@ -29,6 +29,7 @@
 #include "net.h"
 #include "utils.h"
 #include "variant.h"
+#include "list.h"
 
 typedef enum { TR_NET_OK, TR_NET_ERROR, TR_NET_WAIT } tr_tristate_t;
 
@@ -95,6 +96,20 @@ struct tr_turtle_info
     tr_auto_switch_state_t autoTurtleState;
 };
 
+typedef struct {
+    tr_address   addr;
+    tr_port      rpcPort;
+    const char * rpcUsername;
+    const char * rpcPassword;
+} tr_slave;
+
+static inline void tr_freeSlave(tr_slave * slave){
+    if(slave){
+        tr_free((void *) slave->rpcUsername);
+        tr_free((void *) slave->rpcPassword);
+    }
+}
+
 /** @brief handle to an active libtransmission session */
 struct tr_session
 {
@@ -117,7 +132,9 @@ struct tr_session
     bool                         scrapePausedTorrents;
 
     bool                         masterMode;
-    char                   *slaves;
+    //char                       * slaves;
+    //!@todo free
+    tr_list                    * slaves; // tr_slave
 
     uint8_t                      peer_id_ttl_hours;
 

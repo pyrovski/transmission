@@ -159,6 +159,27 @@ tr_atomAddrStr (const struct peer_atom * atom)
   return atom ? tr_peerIoAddrStr (&atom->addr, atom->port) : "[no atom]";
 }
 
+bool tr_isSlave(const tr_session *session, const struct peer_atom * atom){
+    assert(atom);
+    assert (tr_isSession (session));
+
+    const tr_list * list = session->slaves;
+    while (list){
+        if(list->data){
+            tr_address * address = (tr_address *) list->data;
+
+            // slave BT port not specified
+            if(!tr_address_compare(address, &atom->addr)) 
+                return true;
+            else
+                list = list->next;
+        } else
+            break;
+    }
+
+    return false;
+}
+
 struct block_request
 {
   tr_block_index_t block;

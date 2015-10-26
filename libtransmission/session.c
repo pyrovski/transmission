@@ -455,8 +455,11 @@ tr_sessionGetSettings (tr_session * s, tr_variant * d)
   tr_variantDictAddStr  (d, TR_KEY_bind_address_ipv6,            tr_address_to_string (&s->public_ipv6->addr));
   tr_variantDictAddBool (d, TR_KEY_start_added_torrents,         !tr_sessionGetPaused (s));
   tr_variantDictAddBool (d, TR_KEY_trash_original_torrent_files, tr_sessionGetDeleteSource (s));
+  
   tr_variantDictAddBool (d, TR_KEY_master,                       tr_sessionGetMaster(s));
-  tr_variantDictAddStr  (d, TR_KEY_slaves,                       tr_sessionGetSlaves(s));
+  const char * slaves =  tr_sessionGetSlaves(s);
+  tr_variantDictAddStr  (d, TR_KEY_slaves,                       slaves);
+  tr_free((void *) slaves);
 }
 
 bool
@@ -1710,6 +1713,85 @@ tr_sessionGetPaused (const tr_session * session)
   return session->pauseAddedTorrent;
 }
 
+static tr_slave * parseSlaveEntry(const char * entry, const char * next){
+    assert(entry);
+    
+    tr_slave * slave = tr_new0(tr_slave, 1);
+
+    if(!next)
+        next = entry + strlen(entry);
+    
+    int len = next - entry;
+    assert(len >= 0);
+    char * substr = tr_new(char, len + 1);
+    strncpy(substr, entry, len);
+    substr[len] = 0;
+
+    const char delim[] = ":";
+    char * tok = strtok(substr, delim);
+    if(tok)
+        tr_address_from_string(&slave->addr, tok);
+    else
+        goto err;
+
+    tok = strtok(NULL, delim);
+    if(tok)
+        slave->rpcPort = htons(atoi(tok));
+    else
+        goto err;
+
+    tok = strtok(NULL, delim);
+    if(tok){
+        char * rpcUsername = tr_new(char, strlen(tok) + 1);
+        strcpy(rpcUsername, tok);
+        slave->rpcUsername = rpcUsername;
+    } else
+        goto err;
+
+    tok = strtok(NULL, delim);
+    if(tok){
+        char * rpcPassword = tr_new(char, strlen(tok) + 1);
+        strcpy(rpcPassword, tok);
+        slave->rpcPassword = rpcPassword;
+    } else
+        goto err;
+
+    tr_free(substr);
+    return slave;
+
+ err:
+    tr_free(substr);
+    tr_free(slave);
+    return 0;
+}
+
+/*!@todo this should be json
+
+Slaves string: <addr>:<rpc port>:<rpc username>:<rpc password>,...
+   
+ */
+static tr_list * tr_parseSlaves(const char * slaves){
+    assert(slaves);
+
+    tr_list * list = NULL;
+
+    char * next;
+
+    do {
+        next = index(slaves, ',');
+        if(next)
+            next++;
+        tr_slave * slave = parseSlaveEntry(slaves, next);
+        slaves = next;
+        
+        if(slave){
+            tr_list_prepend(&list, (void *) slave);
+        }
+    } while(slaves);
+
+    return list;
+}
+
 void
 tr_sessionSetSlaves (tr_session * session, const char * slaves)
 {
@@ -1717,16 +1799,38 @@ tr_sessionSetSlaves (tr_session * session, const char * slaves)
 
     tr_logAddNamedDbg("master", "setting slaves: %s", slaves);
 
-    tr_free(session->slaves);
-    session->slaves = tr_strdup(slaves);
+    tr_list_free(&session->slaves, NULL);
+
+    session->slaves = tr_parseSlaves(slaves);
 }
 
-const char *
+static const char * tr_slaves_to_str(const tr_list * slaves){
+    char * result = NULL;
+    int entryLen;
+    while(slaves){
+        tr_slave * slave = (tr_slave *) slaves->data;
+        const char * address = tr_address_to_string(&slave->addr);
+
+        char * entry = tr_strdup_printf("%s:%u:%s:%s",
+                                        address, slave->rpcPort,
+                                        slave->rpcUsername, slave->rpcPassword);
+        if(result){
+            char * oldResult = result;
+            result = tr_strdup_printf("%s,%s", result, entry);
+            tr_free((void *) oldResult);
+        } else
+            result = entry;
+    }
+    return result;
+}
+
+//!@todo test
+const char * 
 tr_sessionGetSlaves (const tr_session * session)
 {
     assert (tr_isSession (session));
 
-    return session->slaves;
+    return tr_slaves_to_str(session->slaves);
 }
 
 void
@@ -1983,7 +2087,7 @@ tr_sessionClose (tr_session * session)
   tr_free (session->incompleteDir);
   tr_free (session->blocklist_url);
   tr_free (session->peer_congestion_algorithm);
-  tr_free (session->slaves);
+  tr_list_free (&session->slaves, &tr_freeSlave);
   tr_free (session);
 }
 
