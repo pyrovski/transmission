@@ -1817,6 +1817,7 @@ static const char * tr_slaves_to_str(const tr_list * slaves){
         if(result){
             char * oldResult = result;
             result = tr_strdup_printf("%s,%s", result, entry);
+            tr_free((void *) entry);
             tr_free((void *) oldResult);
         } else
             result = entry;
