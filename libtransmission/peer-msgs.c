@@ -1897,7 +1897,7 @@ updateDesiredRequestCount (tr_peerMsgs * msgs)
     if (tr_torrentIsSeed (torrent) || !tr_torrentHasMetadata (torrent)
                                     || msgs->client_is_choked
                                     || !msgs->client_is_interested
-                                    || tor->session->masterMode)
+                                    || torrent->session->masterMode)
     {
         msgs->desiredRequestCount = 0;
     }
