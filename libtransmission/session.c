@@ -1820,6 +1820,8 @@ static const char * tr_slaves_to_str(const tr_list * slaves){
             tr_free((void *) oldResult);
         } else
             result = entry;
+
+        slaves = slaves->next;
     }
     return result;
 }
