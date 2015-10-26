@@ -446,6 +446,12 @@ tr_peerAddress (const tr_peer * peer)
   return &peer->atom->addr;
 }
 
+tr_port
+tr_peerPort (const tr_peer * peer)
+{
+    return peer->atom->port;
+}
+
 static tr_swarm *
 getExistingSwarm (tr_peerMgr *    manager,
                   const uint8_t * hash)

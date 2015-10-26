@@ -74,6 +74,7 @@ tr_isPex (const tr_pex * pex)
 }
 
 const tr_address * tr_peerAddress (const tr_peer *);
+tr_port tr_peerPort (const tr_peer * peer);
 
 int tr_pexCompare (const void * a, const void * b);
 
