@@ -1721,7 +1721,9 @@ clientGotBlock (tr_peerMsgs                * msgs,
 
     dbgmsg (msgs, "got block %u:%u->%u", req->index, req->offset, req->length);
 
-    if (!tr_peerMgrDidPeerRequest (msgs->torrent, &msgs->peer, block)) {
+    if (!tor->session->masterMode &&
+        !tr_peerMgrDidPeerRequest (msgs->torrent, &msgs->peer, block))
+    {
         dbgmsg (msgs, "we didn't ask for this message...");
         return 0;
     }
