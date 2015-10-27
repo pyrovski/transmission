@@ -2496,7 +2496,7 @@ tr_peerMgrGetMasterPeer (tr_torrent    * tor,
             //tr_logAddNamedDbg("master", "candidate peer %s", 
             //tr_peerIoAddrStr(&peers[i]->atom->addr, peers[i]->atom->port));
             if(!tr_address_compare(&peers[i]->atom->addr, &tor->master)){
-	      //!@todo compare port
+	      //!@todo compare port; currently, BT port not specified
                 *setmePeer = peers[i];
                 return 0;
             }
@@ -2650,8 +2650,6 @@ tr_peerMgrAddTorrent (tr_peerMgr * manager, tr_torrent * tor)
       const uint8_t from = TR_PEER_FROM_INCOMING;
 
       managerLock(manager);
-      /*!@todo I think this might get overwritten; this is happening
-         before resume, verification, LPD, and tracker announce. */
       ensureAtomExists(tor->swarm, &tor->master, tor->masterPort, flags, seedProbability, from);
       managerUnlock(manager);
       struct peer_atom * atom;
