@@ -398,6 +398,34 @@ tr_cachePrefetchBlock (tr_cache         * cache,
   return err;
 }
 
+static int tr_cacheDropBlock(tr_cache           * cache,
+                             struct cache_block * cb){
+    int err = 0;
+
+    //!@todo implement
+
+    return err;
+}
+
+//!@todo test
+int tr_cacheDropPiece (tr_cache         * cache,
+                       tr_torrent       * torrent,
+                       tr_piece_index_t piece)
+{
+    int err = 0;
+
+    uint32_t maxOffset = tr_torPieceCountBytes(torrent, piece);
+    uint32_t offset;
+    
+    for(offset = 0; offset < maxOffset; offset += torrent->blockSize){
+        struct cache_block * cb = findBlock (cache, torrent, piece, offset);
+        if(cb){
+            int status = tr_cacheDropBlock(cache, cb);
+        }
+    }
+
+    return err;
+}
 /***
 ****
 ***/

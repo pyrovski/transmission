@@ -88,6 +88,7 @@ size_t       tr_generateAllowedSet           (tr_piece_index_t         * setmePi
                                               const uint8_t            * infohash,
                                               const struct tr_address  * addr);
 
+void         tr_peerMsgsSendDontHave(tr_peerMsgs * msgs, tr_piece_index_t piece);
 
 /* @} */
 #endif

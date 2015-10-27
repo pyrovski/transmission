@@ -834,6 +834,8 @@ requestListAdd (tr_swarm * s, tr_block_index_t block, tr_peer * peer)
     const int pos = tr_lowerBound (&key, s->requests, s->requestCount,
                                    sizeof (struct block_request),
                                    compareReqByBlock, &exact);
+
+    //!@todo triggered by tr_masterRequestListAdd(). Request already exists?
     assert (!exact);
     memmove (s->requests + pos + 1,
              s->requests + pos,
@@ -862,8 +864,10 @@ void tr_masterRequestListAdd (tr_torrent * tor, tr_piece_index_t pieceIndex, uin
         //!@todo does this require a manager lock?
         bool masterHasBlock = tr_bitfieldHas(&masterPeer->have, pieceIndex);
         //
-        if(masterHasBlock)
-            requestListAdd(tor->swarm, block, masterPeer);
+        if(masterHasBlock){
+            //!@todo check if we have an existing request first
+            //requestListAdd(tor->swarm, block, masterPeer);
+        }
     } else
         msdbg("unable to get master peer");
 }
@@ -1915,6 +1919,13 @@ peerCallbackFunc (tr_peer * peer, const tr_peer_event * e, void * vs)
           break;
         }
 
+      case TR_PEER_CLIENT_GOT_DONT_HAVE:
+          {
+              //!@todo drop cache blocks for this piece
+              //!@todo if we are a slave and peer is master, update master's don't-have bitfield and our have bitfield              
+              break;
+          }
+        
       case TR_PEER_ERROR:
         if ((e->err == ERANGE) || (e->err == EMSGSIZE) || (e->err == ENOTCONN))
           {
@@ -2345,6 +2356,18 @@ tr_peerMgrGotBadPiece (tr_torrent * tor, tr_piece_index_t pieceIndex)
         {
           tordbg (s, "peer %s contributed to corrupt piece (%d); now has %d strikes",
                   tr_atomAddrStr(peer->atom), pieceIndex, (int)peer->strikes + 1);
+
+          if(!tr_isSlave(s->tor->session, peer->atom)){
+              tr_peerMsgs * msgs = tr_peerMsgsCast(peer);
+              
+              if(!msgs){
+                  tr_logSetQueueEnabled (0);
+                  msdbg("no msgs for peer; cannot send don't-have.");
+                  break;
+              }
+              
+              tr_peerMsgsSendDontHave(msgs, pieceIndex);
+          }
           
           addStrike (s, peer);
         }

@@ -54,6 +54,10 @@ int tr_cachePrefetchBlock (tr_cache         * cache,
                            uint32_t           offset,
                            uint32_t           len);
 
+int tr_cacheDropPiece (tr_cache         * cache,
+                       tr_torrent       * torrent,
+                       tr_piece_index_t piece);
+
 /***
 ****
 ***/
