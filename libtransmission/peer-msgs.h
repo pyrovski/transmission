@@ -32,6 +32,8 @@ typedef struct tr_peerMsgs tr_peerMsgs;
 
 #define PEER_MSGS(o) (tr_peerMsgsCast(o))
 
+const char * tr_peerMsgsGetAddrStr(const struct tr_peerMsgs * msgs);
+
 bool         tr_isPeerMsgs                   (const void               * msgs);
 
 tr_peerMsgs* tr_peerMsgsCast                 (void                     * msgs);

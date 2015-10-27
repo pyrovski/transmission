@@ -272,8 +272,9 @@ void logSwarm(tr_swarm *s){
     }
     for(i = 0; i < s->peers.n_items; i++){
         tr_peerMsgs * peer = (tr_peerMsgs *)tr_ptrArrayNth(&s->peers, i);
-        msdbg("swarm peerIo %d: choked: %d, interested: %d, clientChoked: %d, clientInterested: %d",
+        msdbg("swarm peerIo %d: %s: choked: %d, interested: %d, clientChoked: %d, clientInterested: %d",
               i,
+              tr_peerMsgsGetAddrStr(peer),
               tr_peerMsgsIsPeerChoked(peer),
               tr_peerMsgsIsPeerInterested(peer),
               tr_peerMsgsIsClientChoked(peer),
@@ -1897,6 +1898,7 @@ peerCallbackFunc (tr_peer * peer, const tr_peer_event * e, void * vs)
           {
             /* some protocol error from the peer */
             peer->doPurge = true;
+            msdbg("purge %s", tr_atomAddrStr(peer->atom));
             tordbg (s, "setting %s doPurge flag because we got an ERANGE, EMSGSIZE, or ENOTCONN error",
                     tr_atomAddrStr (peer->atom));
           }
@@ -3621,8 +3623,9 @@ comparePeerLiveliness (const void * va, const void * vb)
       return a_isSlave ? -1 : 1;
 
   //!@todo test
-  bool a_isMaster = !tr_address_compare(&a->peer->swarm->tor->master, a->peer->atom);
-  bool b_isMaster = !tr_address_compare(&b->peer->swarm->tor->master, b->peer->atom);
+  //!@todo compare port
+  bool a_isMaster = !tr_address_compare(&a->peer->swarm->tor->master, &a->peer->atom->addr);
+  bool b_isMaster = !tr_address_compare(&b->peer->swarm->tor->master, &b->peer->atom->addr);
   if(a_isMaster != b_isMaster)
       return a_isMaster ? -1 : 1;
 

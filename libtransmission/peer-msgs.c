@@ -257,6 +257,11 @@ struct tr_peerMsgs
   struct tr_peerIo * io;
 };
 
+const char * tr_peerMsgsGetAddrStr(const struct tr_peerMsgs * msgs){
+    return tr_peerIoGetAddrStr(msgs->io);
+}
+
+
 /**
 ***
 **/
@@ -1745,7 +1750,7 @@ clientGotBlock (tr_peerMsgs                * msgs,
             /*!@send message to master with new block. 
               If this is synchronous, no need to mark cache blocks.
             */
-            const tr_peer * masterPeer = NULL;
+            tr_peer * masterPeer = NULL;
 
             int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
             if(status){
@@ -1754,7 +1759,7 @@ clientGotBlock (tr_peerMsgs                * msgs,
                 //if(!atom->peer){
                 tr_logSetQueueEnabled (0);
                 tr_logAddNamedDbg("master", "no master peer set for torrent; cannot send block.");
-                exit(1);
+                //exit(1);
                 goto cleanup;
                 //}
             }
