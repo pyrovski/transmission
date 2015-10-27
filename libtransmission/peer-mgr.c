@@ -299,7 +299,7 @@ struct tr_peerMgr
   do \
     { \
       if (tr_logGetDeepEnabled ()) \
-        tr_logAddDeep (__FILE__, __LINE__, tr_torrentName (t->tor), __VA_ARGS__); \
+          tr_logAddMessage (__FILE__, __LINE__,TR_LOG_DEBUG , tr_torrentName (t->tor), __VA_ARGS__); \
     } \
   while (0)
 
@@ -2323,6 +2323,7 @@ tr_peerMgrGotBadPiece (tr_torrent * tor, tr_piece_index_t pieceIndex)
         {
           tordbg (s, "peer %s contributed to corrupt piece (%d); now has %d strikes",
                   tr_atomAddrStr(peer->atom), pieceIndex, (int)peer->strikes + 1);
+          
           addStrike (s, peer);
         }
     }
@@ -3422,6 +3423,12 @@ shouldPeerBeClosed (const tr_swarm   * s,
   const tr_torrent * tor = s->tor;
   const struct peer_atom * atom = peer->atom;
 
+  if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master))
+      return false;
+
+  if(tr_isSlave(s->tor->session, atom))
+      return false;
+
   /* if it's marked for purging, close it */
   if (peer->doPurge)
     {
@@ -3429,9 +3436,6 @@ shouldPeerBeClosed (const tr_swarm   * s,
               tr_atomAddrStr (atom));
       return true;
     }
-
-  if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master))
-      return false;
 
   /* disconnect if we're both seeds and enough time has passed for PEX */
   if (tr_torrentIsSeed (tor) && tr_peerIsSeed (peer))
@@ -3574,6 +3578,12 @@ closePeer (tr_swarm * s, tr_peer * peer)
 
   msdbg("removing bad peer %s", tr_atomAddrStr (peer->atom));
   tordbg (s, "removing bad peer %s", tr_atomAddrStr (peer->atom));
+  //!@todo getting triggered on slave for master peer
+#ifdef MASTER_DEBUG
+  if(!tr_address_compare(&peer->atom->addr, &s->tor->master)){
+      printf("");
+  }
+#endif
   removePeer (s, peer);
 }
 

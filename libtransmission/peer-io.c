@@ -76,7 +76,7 @@ guessPacketOverhead (size_t d)
   do \
     { \
       if (tr_logGetDeepEnabled ()) \
-        tr_logAddDeep (__FILE__, __LINE__, tr_peerIoGetAddrStr (io), __VA_ARGS__); \
+          tr_logAddMessage (__FILE__, __LINE__, TR_LOG_DEBUG, tr_peerIoGetAddrStr (io), __VA_ARGS__); \
     } \
   while (0)
 
