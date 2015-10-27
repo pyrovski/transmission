@@ -1641,9 +1641,12 @@ addStrike (tr_swarm * s, tr_peer * peer)
   if (++peer->strikes >= MAX_BAD_PIECES_PER_PEER)
     {
       struct peer_atom * atom = peer->atom;
-      atom->flags2 |= MYFLAG_BANNED;
-      peer->doPurge = true;
-      tordbg (s, "banning peer %s", tr_atomAddrStr (atom));
+      bool isMaster = !tr_address_compare(&atom->addr, &s->tor->master);
+      if(!tr_isSlave(s->tor->session, atom) && !isMaster){
+          atom->flags2 |= MYFLAG_BANNED;
+          peer->doPurge = true;
+          tordbg (s, "banning peer %s", tr_atomAddrStr (atom));
+      }
     }
 }
 
