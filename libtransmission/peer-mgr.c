@@ -1442,6 +1442,25 @@ tr_peerMgrGetNextRequests (tr_torrent           * tor,
     {
       struct weighted_piece * p = pieces + i;
 
+      if(tor->hasMaster){
+          bool peerIsMaster = 
+              !tr_address_compare(tr_peerAddress(peer), &tor->master)
+              && tr_peerPort(peer) == tor->masterPort;
+          if(!peerIsMaster){
+              // only request blocks that the master does not have
+              tr_peer * masterPeer = NULL;
+              
+              int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
+              if(status){
+                  tr_logAddNamedDbg("master", "no master peer; cannot check completion.");
+                  continue;
+              }
+              bool masterHasBlock = tr_bitfieldHas(&masterPeer->have, p->index);
+              if(masterHasBlock)
+                  continue;
+          }
+      }
+
       /* if the peer has this piece that we want... */
       if (tr_bitfieldHas (have, p->index))
         {
@@ -3633,8 +3652,8 @@ comparePeerLiveliness (const void * va, const void * vb)
 
   //!@todo test
   // keep master and slave peers
-  bool a_isSlave = tr_isSlave(a->peer->parent->session, a->peer->atom);
-  bool b_isSlave = tr_isSlave(b->peer->parent->session, b->peer->atom);
+  bool a_isSlave = tr_isSlave(a->peer->swarm->tor->session, a->peer->atom);
+  bool b_isSlave = tr_isSlave(b->peer->swarm->tor->session, b->peer->atom);
   if(a_isSlave != b_isSlave)
       return a_isSlave ? -1 : 1;
 
