@@ -1898,7 +1898,9 @@ peerCallbackFunc (tr_peer * peer, const tr_peer_event * e, void * vs)
           {
             /* some protocol error from the peer */
             peer->doPurge = true;
-            msdbg("purge %s", tr_atomAddrStr(peer->atom));
+            //!@todo this is triggering on the master for a slave peer
+            msdbg("setting %s doPurge flag because we got an ERANGE, EMSGSIZE, or ENOTCONN error e:%d",
+                  tr_atomAddrStr (peer->atom), e->err);
             tordbg (s, "setting %s doPurge flag because we got an ERANGE, EMSGSIZE, or ENOTCONN error",
                     tr_atomAddrStr (peer->atom));
           }
