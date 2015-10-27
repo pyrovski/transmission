@@ -3613,6 +3613,19 @@ comparePeerLiveliness (const void * va, const void * vb)
   const struct peer_liveliness * a = va;
   const struct peer_liveliness * b = vb;
 
+  //!@todo test
+  // keep master and slave peers
+  bool a_isSlave = tr_isSlave(a->peer->parent->session, a->peer->atom);
+  bool b_isSlave = tr_isSlave(b->peer->parent->session, b->peer->atom);
+  if(a_isSlave != b_isSlave)
+      return a_isSlave ? -1 : 1;
+
+  //!@todo test
+  bool a_isMaster = !tr_address_compare(&a->peer->swarm->tor->master, a->peer->atom);
+  bool b_isMaster = !tr_address_compare(&b->peer->swarm->tor->master, b->peer->atom);
+  if(a_isMaster != b_isMaster)
+      return a_isMaster ? -1 : 1;
+
   if (a->doPurge != b->doPurge)
     return a->doPurge ? 1 : -1;
 
