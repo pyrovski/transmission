@@ -63,7 +63,7 @@ tr_logGetFile (void)
   static bool initialized = false;
   static tr_sys_file_t file = TR_BAD_SYS_FILE;
 
-  if (!initialized)
+  //  if (!initialized)
     {
       const int fd = tr_env_get_int ("TR_DEBUG_FD", 0);
 

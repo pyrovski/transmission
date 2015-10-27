@@ -1757,7 +1757,7 @@ clientGotBlock (tr_peerMsgs                * msgs,
                 //struct peer_atom * atom;
                 //atom = getMasterAtomFromTorrent(msgs->torrent);
                 //if(!atom->peer){
-                tr_logSetQueueEnabled (0);
+                //tr_logSetQueueEnabled (0);
                 tr_logAddNamedDbg("master", "no master peer set for torrent; cannot send block.");
                 //exit(1);
                 goto cleanup;
@@ -1798,7 +1798,8 @@ clientGotBlock (tr_peerMsgs                * msgs,
             size_t outBufferSpace = tr_peerIoGetWriteBufferSpace (masterMsgs->io, now);
             if(outBufferSpace <= msglen) {
                 //!@todo how much space is appropriate to flush here?
-                tr_peerIoFlush(masterMsgs->io, TR_CLIENT_TO_PEER, msglen - outBufferSpace);
+                status = tr_peerIoFlush(masterMsgs->io, TR_CLIENT_TO_PEER, msglen - outBufferSpace);
+                msdbg("flushed %d bytes to master");
             }
 
             outBufferSpace = tr_peerIoGetWriteBufferSpace (masterMsgs->io, now);

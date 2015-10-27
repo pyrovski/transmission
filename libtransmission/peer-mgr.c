@@ -3570,6 +3570,7 @@ closePeer (tr_swarm * s, tr_peer * peer)
       tordbg (s, "incremented atom %s numFails to %d", tr_atomAddrStr (atom), (int)atom->numFails);
     }
 
+  msdbg("removing bad peer %s", tr_atomAddrStr (peer->atom));
   tordbg (s, "removing bad peer %s", tr_atomAddrStr (peer->atom));
   removePeer (s, peer);
 }
