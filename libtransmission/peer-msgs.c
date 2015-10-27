@@ -12,6 +12,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <event2/buffer.h>
 #include <event2/bufferevent.h>
@@ -66,7 +67,7 @@ enum
 
   UT_PEX_ID               = 1,
   UT_METADATA_ID          = 3,
-  UT_MASTER_ID            = 4,
+  LTEP_MASTER_ID          = 4,
 
   MAX_PEX_PEER_COUNT      = 50,
 
@@ -102,7 +103,10 @@ enum
   /* defined in BEP #9 */
   METADATA_MSG_TYPE_REQUEST = 0,
   METADATA_MSG_TYPE_DATA = 1,
-  METADATA_MSG_TYPE_REJECT = 2
+  METADATA_MSG_TYPE_REJECT = 2,
+
+  /* master protocol messages */
+  MASTER_MSG_TYPE_DONTHAVE = 0
 };
 
 enum
@@ -211,7 +215,7 @@ struct tr_peerMsgs
   uint8_t         state;
   uint8_t         ut_pex_id;
   uint8_t         ut_metadata_id;
-  uint8_t         ut_master_id;
+  uint8_t         ltep_master_id;
   uint16_t        pexCount;
   uint16_t        pexCount6;
 
@@ -609,6 +613,14 @@ fireClientGotHave (tr_peerMsgs * msgs, tr_piece_index_t index)
   publish (msgs, &e);
 }
 
+static void
+fireClientGotDontHave (tr_peerMsgs * msgs, tr_piece_index_t index)
+{
+  tr_peer_event e = TR_PEER_EVENT_INIT;
+  e.eventType = TR_PEER_CLIENT_GOT_DONT_HAVE;
+  e.pieceIndex = index;
+  publish (msgs, &e);    
+}
 
 /**
 ***  ALLOWED FAST SET
@@ -974,7 +986,7 @@ sendLtepHandshake (tr_peerMsgs * msgs)
             tr_variantDictAddInt (m, TR_KEY_ut_metadata, UT_METADATA_ID);
         if (allow_pex)
             tr_variantDictAddInt (m, TR_KEY_ut_pex, UT_PEX_ID);
-        tr_variantDictAddInt(m, TR_KEY_master, UT_MASTER_ID);
+        tr_variantDictAddInt(m, TR_KEY_master, LTEP_MASTER_ID);
     }
 
     payload = tr_variantToBuf (&val, TR_VARIANT_FMT_BENC);
@@ -1052,7 +1064,7 @@ parseLtepHandshake (tr_peerMsgs * msgs, uint32_t len, struct evbuffer * inbuf)
         }
         if( tr_variantDictFindInt (sub, TR_KEY_master, &i)){
             msgs->peerSupportsMaster = i != 0;
-            msgs->ut_master_id = (uint8_t) i;
+            msgs->ltep_master_id = (uint8_t) i;
             msdbg("peer %s supports master: %d", tr_peerMsgsGetAddrStr(msgs), (int)i);
         }
     }
@@ -1242,6 +1254,36 @@ parseUtPex (tr_peerMsgs * msgs, uint32_t msglen, struct evbuffer * inbuf)
 
 static void sendPex (tr_peerMsgs * msgs);
 
+//!@todo test
+static void
+parseMaster (tr_peerMsgs * msgs, uint32_t msglen, struct evbuffer * inbuf)
+{
+    uint8_t * tmp = tr_new (uint8_t, msglen);
+    //tr_torrent * tor = msgs->torrent;
+    tr_variant dict;
+    int64_t msg_type = -1;
+    int64_t msg_piece = -1;
+
+    tr_peerIoReadBytes (msgs->io, inbuf, tmp, msglen);
+    if (!tr_variantFromBenc (&dict, tmp, msglen)){
+        tr_variantDictFindInt (&dict, TR_KEY_msg_type, &msg_type);
+        tr_variantDictFindInt (&dict, TR_KEY_piece, &msg_piece);
+        tr_variantFree (&dict);
+    }
+
+    dbgmsg(msgs, "got ltep_master msg: type %"PRId64", piece %"PRId64, msg_type, msg_piece);
+    tr_piece_index_t piece = msg_piece;
+    switch(msg_type){
+        case MASTER_MSG_TYPE_DONTHAVE:
+            fireClientGotDontHave(msgs, piece);
+            break;
+        default:
+            dbgmsg(msgs, "unknown ltep_master msg type: %"PRId64, msg_type);
+    }
+
+    tr_free (tmp);
+}
+
 static void
 parseLtep (tr_peerMsgs * msgs, uint32_t msglen, struct evbuffer * inbuf)
 {
@@ -1273,6 +1315,12 @@ parseLtep (tr_peerMsgs * msgs, uint32_t msglen, struct evbuffer * inbuf)
         dbgmsg (msgs, "got ut metadata");
         msgs->peerSupportsMetadataXfer = true;
         parseUtMetadata (msgs, msglen, inbuf);
+    }
+    else if (ltep_msgid == LTEP_MASTER_ID)
+    {
+        dbgmsg(msgs, "got LTEP master");
+        msgs->peerSupportsMaster = true;
+        parseMaster (msgs, msglen, inbuf);
     }
     else
     {
@@ -1951,6 +1999,36 @@ updateDesiredRequestCount (tr_peerMsgs * msgs)
             if (msgs->desiredRequestCount > msgs->reqq)
                 msgs->desiredRequestCount = msgs->reqq;
     }
+}
+
+void
+tr_peerMsgsSendDontHave(tr_peerMsgs * msgs, tr_piece_index_t piece){
+    if (msgs->peerSupportsMaster){
+        tr_variant tmp;
+        struct evbuffer * payload;
+        struct evbuffer * out = msgs->outMessages;
+
+        /* build the data message */
+        tr_variantInitDict (&tmp, 3);
+        tr_variantDictAddInt (&tmp, TR_KEY_msg_type, MASTER_MSG_TYPE_DONTHAVE);
+        tr_variantDictAddInt (&tmp, TR_KEY_piece, piece);
+        payload = tr_variantToBuf (&tmp, TR_VARIANT_FMT_BENC);
+
+        msdbg("sending don't have: %d", piece);
+
+        /* write it out as a LTEP message to our outMessages buffer */
+        evbuffer_add_uint32 (out, 2 * sizeof (uint8_t) + evbuffer_get_length (payload));
+        evbuffer_add_uint8 (out, BT_LTEP);
+        evbuffer_add_uint8 (out, msgs->ltep_master_id);
+        evbuffer_add_buffer (out, payload);
+        pokeBatchPeriod (msgs, HIGH_PRIORITY_INTERVAL_SECS);
+        dbgOutMessageLen (msgs);
+
+        /* cleanup */
+        evbuffer_free (payload);
+        tr_variantFree (&tmp);
+    } else
+        msdbg("attempted to send don't have message to unsupporting peer");
 }
 
 static void
