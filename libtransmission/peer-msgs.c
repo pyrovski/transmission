@@ -66,6 +66,7 @@ enum
 
   UT_PEX_ID               = 1,
   UT_METADATA_ID          = 3,
+  UT_MASTER_ID            = 4,
 
   MAX_PEX_PEER_COUNT      = 50,
 
@@ -190,6 +191,7 @@ struct tr_peerMsgs
 
   bool peerSupportsPex;
   bool peerSupportsMetadataXfer;
+  bool peerSupportsMaster;
   bool clientSentLtepHandshake;
   bool peerSentLtepHandshake;
 
@@ -209,6 +211,7 @@ struct tr_peerMsgs
   uint8_t         state;
   uint8_t         ut_pex_id;
   uint8_t         ut_metadata_id;
+  uint8_t         ut_master_id;
   uint16_t        pexCount;
   uint16_t        pexCount6;
 
@@ -971,6 +974,7 @@ sendLtepHandshake (tr_peerMsgs * msgs)
             tr_variantDictAddInt (m, TR_KEY_ut_metadata, UT_METADATA_ID);
         if (allow_pex)
             tr_variantDictAddInt (m, TR_KEY_ut_pex, UT_PEX_ID);
+        tr_variantDictAddInt(m, TR_KEY_master, UT_MASTER_ID);
     }
 
     payload = tr_variantToBuf (&val, TR_VARIANT_FMT_BENC);
@@ -1045,6 +1049,11 @@ parseLtepHandshake (tr_peerMsgs * msgs, uint32_t len, struct evbuffer * inbuf)
             tr_peerMgrSetUtpFailed (msgs->torrent,
                                     tr_peerIoGetAddress (msgs->io, NULL),
                                     false);
+        }
+        if( tr_variantDictFindInt (sub, TR_KEY_master, &i)){
+            msgs->peerSupportsMaster = i != 0;
+            msgs->ut_master_id = (uint8_t) i;
+            msdbg("peer %s supports master: %d", tr_peerMsgsGetAddrStr(msgs), (int)i);
         }
     }
 
@@ -1799,7 +1808,7 @@ clientGotBlock (tr_peerMsgs                * msgs,
             if(outBufferSpace <= msglen) {
                 //!@todo how much space is appropriate to flush here?
                 status = tr_peerIoFlush(masterMsgs->io, TR_CLIENT_TO_PEER, msglen - outBufferSpace);
-                msdbg("flushed %d bytes to master");
+                msdbg("flushed %d bytes to master", status);
             }
 
             outBufferSpace = tr_peerIoGetWriteBufferSpace (masterMsgs->io, now);
