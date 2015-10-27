@@ -3772,7 +3772,7 @@ reconnectPulse (evutil_socket_t foo UNUSED, short bar UNUSED, void * vmgr)
       closeBadPeers (tor->swarm, now_sec);
 
   /* try to make new peer connections */
-  if(!tor->session->masterMode) // master does not make outgoing peer connections
+  if(!mgr->session->masterMode) // master does not make outgoing peer connections
       makeNewPeerConnections (mgr, MAX_CONNECTIONS_PER_PULSE);
 }
 
