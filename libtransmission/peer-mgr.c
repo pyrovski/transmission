@@ -854,36 +854,6 @@ requestListAdd (tr_swarm * s, tr_block_index_t block, tr_peer * peer)
                      (unsigned long)block, tr_atomAddrStr (peer->atom), s->requestCount);*/
 }
 
-void tr_masterRequestListAdd (tr_torrent * tor, tr_piece_index_t pieceIndex, uint32_t pieceOffset){
-    tr_block_index_t block = tr_block(pieceIndex, pieceOffset);
-
-    tr_peer * masterPeer = NULL;
-    int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
-    if(!status){
-        // check if master has block
-        //!@todo does this require a manager lock?
-        bool masterHasBlock = tr_bitfieldHas(&masterPeer->have, pieceIndex);
-        //
-        if(masterHasBlock){
-            //!@todo check if we have an existing request first
-            //requestListAdd(tor->swarm, block, masterPeer);
-        }
-    } else
-        msdbg("unable to get master peer");
-}
-
-static struct block_request *
-requestListLookup (tr_swarm * s, tr_block_index_t block, const tr_peer * peer)
-{
-  struct block_request key;
-  key.block = block;
-  key.peer = (tr_peer*) peer;
-
-  return bsearch (&key, s->requests, s->requestCount,
-                  sizeof (struct block_request),
-                  compareReqByBlock);
-}
-
 /**
  * Find the peers are we currently requesting the block
  * with index @a block from and append them to @a peerArr.
@@ -910,6 +880,60 @@ getBlockRequestPeers (tr_swarm * s, tr_block_index_t block,
         break;
       tr_ptrArrayAppend (peerArr, s->requests[i].peer);
     }
+}
+
+void tr_masterRequestListAdd (tr_torrent * tor, tr_piece_index_t pieceIndex, uint32_t pieceOffset){
+    tr_block_index_t block = tr_block(pieceIndex, pieceOffset);
+
+    tr_peer * masterPeer = NULL;
+    int status = tr_peerMgrGetMasterPeer(tor, &masterPeer);
+    if(!status){
+        // check if master has block
+        //!@todo does this require a manager lock?
+        bool masterHasBlock = tr_bitfieldHas(&masterPeer->have, pieceIndex);
+        //
+        if(masterHasBlock){
+            //!@todo check if we have an existing request first
+            tr_ptrArray peerArr = TR_PTR_ARRAY_INIT;
+            tr_swarm * swarm = tor->swarm;
+
+            tr_ptrArrayClear (&peerArr);
+            getBlockRequestPeers (swarm, block, &peerArr);
+
+            int peerCount = 0;
+            tr_peer ** peers = (tr_peer **) tr_ptrArrayPeek (&peerArr, &peerCount);
+
+            if (peerCount != 0){
+                int i;
+                bool masterInPeerList = false;
+
+                for(i = 0; i < peerCount; i++)
+                    if(peers[i] == masterPeer){
+                        masterInPeerList = true;
+                        break;
+                    }
+
+                if(!masterInPeerList){
+                    requestListAdd(swarm, block, masterPeer);
+                    //!@todo update weighted piece request counts?
+                }
+
+            }
+        }
+    } else
+        msdbg("unable to get master peer");
+}
+
+static struct block_request *
+requestListLookup (tr_swarm * s, tr_block_index_t block, const tr_peer * peer)
+{
+  struct block_request key;
+  key.block = block;
+  key.peer = (tr_peer*) peer;
+
+  return bsearch (&key, s->requests, s->requestCount,
+                  sizeof (struct block_request),
+                  compareReqByBlock);
 }
 
 static void
