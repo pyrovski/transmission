@@ -67,7 +67,9 @@ struct tr_peerIo;
 struct tr_peerMsgs;
 struct tr_swarm;
 
-bool tr_isSlave(const tr_session *session, const struct peer_atom * atom);
+const tr_address * tr_atomGetAddress(const struct peer_atom * atom);
+
+bool tr_isSlave(const tr_session *session, const tr_address * addr);
 
 static inline bool
 tr_isPex (const tr_pex * pex)

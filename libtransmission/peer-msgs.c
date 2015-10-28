@@ -106,7 +106,8 @@ enum
   METADATA_MSG_TYPE_REJECT = 2,
 
   /* master protocol messages */
-  MASTER_MSG_TYPE_DONTHAVE = 0
+  MASTER_MSG_TYPE_DONTHAVE = 0,
+  MASTER_MSG_TYPE_ID_ASSIGN = 1
 };
 
 enum
@@ -1076,6 +1077,13 @@ parseLtepHandshake (tr_peerMsgs * msgs, uint32_t len, struct evbuffer * inbuf)
             msgs->peerSupportsMaster = i != 0;
             msgs->ltep_master_id = (uint8_t) i;
             msdbg("peer %s supports master: %d", tr_peerMsgsGetAddrStr(msgs), (int)i);
+
+            // send id assignment if peer is slave
+            if(tr_isSlave(getSession (msgs), tr_peerIoGetAddress(msgs->io, NULL))){
+                //!@todo was this slave connected before?
+                tr_peerMsgsSendIdAssign(msgs, msgs->torrent->masterAssignMod, msgs->torrent->masterAssignMod + 1);
+                msgs->torrent->masterAssignMod++;
+            }
         }
     }
 
@@ -1269,27 +1277,48 @@ static void
 parseMaster (tr_peerMsgs * msgs, uint32_t msglen, struct evbuffer * inbuf)
 {
     uint8_t * tmp = tr_new (uint8_t, msglen);
-    //tr_torrent * tor = msgs->torrent;
+    tr_torrent * tor = msgs->torrent;
     tr_variant dict;
     int64_t msg_type = -1;
-    int64_t msg_piece = -1;
 
     tr_peerIoReadBytes (msgs->io, inbuf, tmp, msglen);
     if (!tr_variantFromBenc (&dict, tmp, msglen)){
         tr_variantDictFindInt (&dict, TR_KEY_msg_type, &msg_type);
-        tr_variantDictFindInt (&dict, TR_KEY_piece, &msg_piece);
+
+        switch(msg_type){
+            case MASTER_MSG_TYPE_DONTHAVE:
+                {
+                    int64_t msg_piece = -1;
+                    dbgmsg(msgs, "got ltep_master msg: type %"PRId64", piece %"PRId64, msg_type, msg_piece);
+                    tr_variantDictFindInt (&dict, TR_KEY_piece, &msg_piece);
+                    tr_piece_index_t piece = msg_piece;
+                    fireClientGotDontHave(msgs, piece);
+                    break;
+                }
+            case MASTER_MSG_TYPE_ID_ASSIGN:
+                {
+                    int64_t masterAssignID;
+                    int64_t masterAssignMod;
+
+                    if(!tr_variantDictFindInt(&dict, TR_KEY_masterAssignID, &masterAssignID) || 
+                       !tr_variantDictFindInt(&dict, TR_KEY_masterAssignMod, &masterAssignMod))
+                    {
+                        msdbg("failed to parse master ID/modulus assignment");
+                    }
+
+                    // new block requests will reflect the new id/mod settings.
+                    tor->masterAssignID = masterAssignID;
+                    tor->masterAssignMod = masterAssignMod;
+
+                    break;
+                }
+            default:
+                dbgmsg(msgs, "unknown ltep_master msg type: %"PRId64, msg_type);
+        }
+
         tr_variantFree (&dict);
     }
 
-    dbgmsg(msgs, "got ltep_master msg: type %"PRId64", piece %"PRId64, msg_type, msg_piece);
-    tr_piece_index_t piece = msg_piece;
-    switch(msg_type){
-        case MASTER_MSG_TYPE_DONTHAVE:
-            fireClientGotDontHave(msgs, piece);
-            break;
-        default:
-            dbgmsg(msgs, "unknown ltep_master msg type: %"PRId64, msg_type);
-    }
 
     tr_free (tmp);
 }
@@ -1974,7 +2003,7 @@ updateDesiredRequestCount (tr_peerMsgs * msgs)
     if (tr_torrentIsSeed (torrent) || !tr_torrentHasMetadata (torrent)
                                     || msgs->client_is_choked
                                     || !msgs->client_is_interested
-        || (torrent->session->masterMode && !tr_isSlave(torrent->session, msgs->peer.atom)))
+        || (torrent->session->masterMode && !tr_isSlave(torrent->session, tr_atomGetAddress(msgs->peer.atom))))
     {
         msgs->desiredRequestCount = 0;
     }
@@ -2010,6 +2039,37 @@ updateDesiredRequestCount (tr_peerMsgs * msgs)
     }
 }
 
+void tr_peerMsgsSendIdAssign(tr_peerMsgs * msgs, uint8_t id, uint8_t mod)
+{
+    if (msgs->peerSupportsMaster){
+        tr_variant tmp;
+        struct evbuffer * payload;
+        struct evbuffer * out = msgs->outMessages;
+
+        /* build the data message */
+        tr_variantInitDict (&tmp, 3);
+        tr_variantDictAddInt (&tmp, TR_KEY_msg_type, MASTER_MSG_TYPE_ID_ASSIGN);
+        tr_variantDictAddInt (&tmp, TR_KEY_masterAssignID, id);
+        tr_variantDictAddInt (&tmp, TR_KEY_masterAssignMod, mod);
+        payload = tr_variantToBuf (&tmp, TR_VARIANT_FMT_BENC);
+
+        msdbg("sending id assign: %d/%d", id, mod);
+
+        /* write it out as a LTEP message to our outMessages buffer */
+        evbuffer_add_uint32 (out, 2 * sizeof (uint8_t) + evbuffer_get_length (payload));
+        evbuffer_add_uint8 (out, BT_LTEP);
+        evbuffer_add_uint8 (out, msgs->ltep_master_id);
+        evbuffer_add_buffer (out, payload);
+        pokeBatchPeriod (msgs, HIGH_PRIORITY_INTERVAL_SECS);
+        dbgOutMessageLen (msgs);
+
+        /* cleanup */
+        evbuffer_free (payload);
+        tr_variantFree (&tmp);
+    } else
+        msdbg("attempted to send id assign message to unsupporting peer");
+}
+
 void
 tr_peerMsgsSendDontHave(tr_peerMsgs * msgs, tr_piece_index_t piece){
     if (msgs->peerSupportsMaster){
@@ -2018,7 +2078,7 @@ tr_peerMsgsSendDontHave(tr_peerMsgs * msgs, tr_piece_index_t piece){
         struct evbuffer * out = msgs->outMessages;
 
         /* build the data message */
-        tr_variantInitDict (&tmp, 3);
+        tr_variantInitDict (&tmp, 2);
         tr_variantDictAddInt (&tmp, TR_KEY_msg_type, MASTER_MSG_TYPE_DONTHAVE);
         tr_variantDictAddInt (&tmp, TR_KEY_piece, piece);
         payload = tr_variantToBuf (&tmp, TR_VARIANT_FMT_BENC);
@@ -2053,7 +2113,7 @@ updateMetadataRequests (tr_peerMsgs * msgs, time_t now)
         struct evbuffer * out = msgs->outMessages;
 
         /* build the data message */
-        tr_variantInitDict (&tmp, 3);
+        tr_variantInitDict (&tmp, 2);
         tr_variantDictAddInt (&tmp, TR_KEY_msg_type, METADATA_MSG_TYPE_REQUEST);
         tr_variantDictAddInt (&tmp, TR_KEY_piece, piece);
         payload = tr_variantToBuf (&tmp, TR_VARIANT_FMT_BENC);

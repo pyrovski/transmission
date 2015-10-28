@@ -763,7 +763,7 @@ torrentInitFromInfo (tr_torrent * tor)
   uint64_t t;
   tr_info * info = &tor->info;
 
-  if(info->master){ //!@todo when is this set?
+  if(info->master){ //!@todo when is this set? Should the existing value be overwritten?
       bool status = tr_address_from_string(&tor->master, info->master);
       tr_logAddNamedDbg("master", "set to %s: %d", info->master, status);
 
@@ -910,12 +910,15 @@ torrentInit (tr_torrent * tor, const tr_ctor * ctor)
               tr_logAddNamedDbg("master", "port set to %s: %d", masterPort, ntohs(tor->masterPort));
           } else
               tr_logAddNamedDbg("master", "failed to get port from constructor: %d", status);
+
+          tor->masterAssignID = 0;
+          tor->masterAssignMod = 1;
       } else {
           tor->hasMaster = false;
           tr_logAddNamedDbg("master", "attempt to set to %s failed: %d", master, status);
+          tor->masterAssignMod = 0; // first connected slave will increment
       }
   }
-  //tor->master_peerIo = NULL;
 
   tr_bandwidthConstruct (&tor->bandwidth, session, &session->bandwidth);
 
@@ -1617,10 +1620,6 @@ freeTorrent (tr_torrent * tor)
 
   tr_cpDestruct (&tor->completion);
 
-  //if(tor->master_peerIo)
-  //    tr_peerIoUnref(tor->master_peerIo);
-
-  //tr_free (tor->master_peerIo);
   tr_free (tor->downloadDir);
   tr_free (tor->incompleteDir);
 

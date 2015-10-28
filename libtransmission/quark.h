@@ -193,6 +193,8 @@ enum
   TR_KEY_main_window_y,
   TR_KEY_manualAnnounceTime,
   TR_KEY_master,
+  TR_KEY_masterAssignID,
+  TR_KEY_masterAssignMod,
   TR_KEY_masterPort,
   TR_KEY_max_peers,
   TR_KEY_maxConnectedPeers,

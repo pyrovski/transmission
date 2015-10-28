@@ -12,6 +12,7 @@
 #include <limits.h> /* INT_MAX */
 #include <string.h> /* memcpy, memcmp, strstr */
 #include <stdlib.h> /* qsort */
+#include <stdint.h>
 
 #include <event2/event.h>
 
@@ -159,8 +160,14 @@ tr_atomAddrStr (const struct peer_atom * atom)
   return atom ? tr_peerIoAddrStr (&atom->addr, atom->port) : "[no atom]";
 }
 
-bool tr_isSlave(const tr_session *session, const struct peer_atom * atom){
+const tr_address * tr_atomGetAddress(const struct peer_atom * atom){
     assert(atom);
+
+    return &atom->addr;
+}
+
+bool tr_isSlave(const tr_session *session, const tr_address * addr){
+    assert(addr);
     assert (tr_isSession (session));
 
     const tr_list * list = session->slaves;
@@ -169,7 +176,7 @@ bool tr_isSlave(const tr_session *session, const struct peer_atom * atom){
             tr_address * address = (tr_address *) list->data;
 
             // slave BT port not specified
-            if(!tr_address_compare(address, &atom->addr)) 
+            if(!tr_address_compare(address, addr)) 
                 return true;
             else
                 list = list->next;
@@ -1485,6 +1492,10 @@ tr_peerMgrGetNextRequests (tr_torrent           * tor,
               bool masterHasBlock = tr_bitfieldHas(&masterPeer->have, p->index);
               if(masterHasBlock)
                   continue;
+
+              // check our piece id assignment
+              if(p->index % tor->masterAssignMod != tor->masterAssignID)
+                  continue;
           }
       }
 
@@ -1688,7 +1699,7 @@ addStrike (tr_swarm * s, tr_peer * peer)
     {
       struct peer_atom * atom = peer->atom;
       bool isMaster = !tr_address_compare(&atom->addr, &s->tor->master);
-      if(!tr_isSlave(s->tor->session, atom) && !isMaster){
+      if(!tr_isSlave(s->tor->session, &atom->addr) && !isMaster){
           atom->flags2 |= MYFLAG_BANNED;
           peer->doPurge = true;
           tordbg (s, "banning peer %s", tr_atomAddrStr (atom));
@@ -1944,8 +1955,18 @@ peerCallbackFunc (tr_peer * peer, const tr_peer_event * e, void * vs)
 
       case TR_PEER_CLIENT_GOT_DONT_HAVE:
           {
-              //!@todo drop cache blocks for this piece
-              //!@todo if we are a slave and peer is master, update master's don't-have bitfield and our have bitfield              
+              // if we are a slave and peer is master
+              if(s->tor->hasMaster &&
+                 !tr_address_compare(&peer->atom->addr, &s->tor->master) &&
+                 peer->atom->port == s->tor->masterPort)
+              {
+                  // drop cache blocks for this piece
+                  tr_cacheDropPiece(s->tor->session->cache, s->tor, e->pieceIndex);
+
+                  // update our have bitfield (blocks)
+                  tr_cpPieceRem(&s->tor->completion, e->pieceIndex);
+              }
+
               break;
           }
         
@@ -2380,7 +2401,7 @@ tr_peerMgrGotBadPiece (tr_torrent * tor, tr_piece_index_t pieceIndex)
           tordbg (s, "peer %s contributed to corrupt piece (%d); now has %d strikes",
                   tr_atomAddrStr(peer->atom), pieceIndex, (int)peer->strikes + 1);
 
-          if(!tr_isSlave(s->tor->session, peer->atom)){
+          if(!tr_isSlave(s->tor->session, &peer->atom->addr)){
               tr_peerMsgs * msgs = tr_peerMsgsCast(peer);
               
               if(!msgs){
@@ -3489,7 +3510,7 @@ shouldPeerBeClosed (const tr_swarm   * s,
   if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master))
       return false;
 
-  if(tr_isSlave(s->tor->session, atom))
+  if(tr_isSlave(s->tor->session, &atom->addr))
       return false;
 
   /* if it's marked for purging, close it */
@@ -3693,8 +3714,8 @@ comparePeerLiveliness (const void * va, const void * vb)
 
   //!@todo test
   // keep master and slave peers
-  bool a_isSlave = tr_isSlave(a->peer->swarm->tor->session, a->peer->atom);
-  bool b_isSlave = tr_isSlave(b->peer->swarm->tor->session, b->peer->atom);
+  bool a_isSlave = tr_isSlave(a->peer->swarm->tor->session, &a->peer->atom->addr);
+  bool b_isSlave = tr_isSlave(b->peer->swarm->tor->session, &b->peer->atom->addr);
   if(a_isSlave != b_isSlave)
       return a_isSlave ? -1 : 1;
 
@@ -3702,7 +3723,7 @@ comparePeerLiveliness (const void * va, const void * vb)
   bool a_isMaster = !tr_address_compare(&a->peer->swarm->tor->master, &a->peer->atom->addr) &&
       a->peer->swarm->tor->masterPort == a->peer->atom->port;
   bool b_isMaster = !tr_address_compare(&b->peer->swarm->tor->master, &b->peer->atom->addr) &&
-      b>peer->swarm->tor->masterPort == b->peer->atom->port;
+      b->peer->swarm->tor->masterPort == b->peer->atom->port;
   if(a_isMaster != b_isMaster)
       return a_isMaster ? -1 : 1;
 
@@ -4154,7 +4175,7 @@ getPeerCandidateScore (const tr_torrent * tor, const struct peer_atom * atom, ui
 
   if(tor->hasMaster && !tr_address_compare(&atom->addr, &tor->master)){
 #ifdef MASTER_DEBUG
-      tr_logAddNamedDbg("slave", "candidate score for master: 0x%llX", score);
+      tr_logAddNamedDbg("slave", "candidate score for master: 0x%"PRIx64, score);
 #endif
       return score;
   }

@@ -163,8 +163,13 @@ struct tr_torrent
 
     /* for slave mode */
     bool hasMaster;
-    tr_address master;
+    tr_address master; // address of master peer
     tr_port masterPort; // in network order
+    uint8_t masterAssignID; // our pieces: (piece ID) % masterAssignMod == masterAssignID
+
+    /* for slave and master mode */
+    //!@todo when a peer connects, check all connected peers on the torrent for slaves, update this total
+    uint8_t masterAssignMod; // number of active slaves
 
     /* Where the files will be when it's complete */
     char * downloadDir;
