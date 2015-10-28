@@ -196,7 +196,7 @@ flushContiguous (tr_cache * cache, int pos, int n)
       err = 0;
   tr_free (buf);
 
-  //!@todo does not apply to master writes
+  //!@todo does not apply to slave writes
   ++cache->disk_writes;
   cache->disk_write_bytes += walk-buf;
   return err;
@@ -369,15 +369,19 @@ tr_cacheReadBlock (tr_cache         * cache,
                    tr_piece_index_t   piece,
                    uint32_t           offset,
                    uint32_t           len,
-                   uint8_t          * setme)
+                   uint8_t          * setme,
+                   bool             * cached)
 {
   int err = 0;
   struct cache_block * cb = findBlock (cache, torrent, piece, offset);
 
-  if (cb)
+  if (cb){
     evbuffer_copyout (cb->evbuf, setme, len);
-  else
+    if(cached) *cached = true;
+  } else {
     err = tr_ioRead (torrent, piece, offset, len, setme);
+    if(cached) *cached = false;
+  }
 
   return err;
 }
@@ -398,11 +402,10 @@ tr_cachePrefetchBlock (tr_cache         * cache,
   return err;
 }
 
+//!@todo implement
 static int tr_cacheDropBlock(tr_cache           * cache,
                              struct cache_block * cb){
     int err = 0;
-
-    //!@todo implement
 
     return err;
 }

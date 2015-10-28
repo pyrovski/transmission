@@ -835,7 +835,6 @@ requestListAdd (tr_swarm * s, tr_block_index_t block, tr_peer * peer)
                                    sizeof (struct block_request),
                                    compareReqByBlock, &exact);
 
-    //!@todo triggered by tr_masterRequestListAdd(). Request already exists?
     assert (!exact);
     memmove (s->requests + pos + 1,
              s->requests + pos,
@@ -893,7 +892,7 @@ void tr_masterRequestListAdd (tr_torrent * tor, tr_piece_index_t pieceIndex, uin
         bool masterHasBlock = tr_bitfieldHas(&masterPeer->have, pieceIndex);
         //
         if(masterHasBlock){
-            //!@todo check if we have an existing request first
+            // check if we have an existing request first
             tr_ptrArray peerArr = TR_PTR_ARRAY_INIT;
             tr_swarm * swarm = tor->swarm;
 
@@ -2569,8 +2568,8 @@ tr_peerMgrGetMasterPeer (tr_torrent    * tor,
         for (i=0; i<atomCount; ++i){
             //tr_logAddNamedDbg("master", "candidate peer %s", 
             //tr_peerIoAddrStr(&peers[i]->atom->addr, peers[i]->atom->port));
-            if(!tr_address_compare(&peers[i]->atom->addr, &tor->master)){
-	      //!@todo compare port; currently, BT port not specified
+            if(!tr_address_compare(&peers[i]->atom->addr, &tor->master) &&
+               peers[i]->atom->port == tor->masterPort){
                 *setmePeer = peers[i];
                 return 0;
             }
@@ -2732,13 +2731,8 @@ tr_peerMgrAddTorrent (tr_peerMgr * manager, tr_torrent * tor)
           tr_logAddNamedDbg("master", "failed to get master atom from swarm");
           return;
       }
-      /*!@todo if torrent is not started yet, this handshake should not be happening.
-      tr_logAddNamedDbg("master", "initiating connection to master");
-      initiateConnection(manager, tor->swarm, atom);
-      */
   } else if(tor->session->masterMode){
-      /*!@todo master: add slaves as peers;
-        This should come after slaves have been contacted over RPC.
+      /*!@todo master: make sure slave RPC stuff happens
        */
   }
 }
@@ -3705,9 +3699,10 @@ comparePeerLiveliness (const void * va, const void * vb)
       return a_isSlave ? -1 : 1;
 
   //!@todo test
-  //!@todo compare port
-  bool a_isMaster = !tr_address_compare(&a->peer->swarm->tor->master, &a->peer->atom->addr);
-  bool b_isMaster = !tr_address_compare(&b->peer->swarm->tor->master, &b->peer->atom->addr);
+  bool a_isMaster = !tr_address_compare(&a->peer->swarm->tor->master, &a->peer->atom->addr) &&
+      a->peer->swarm->tor->masterPort == a->peer->atom->port;
+  bool b_isMaster = !tr_address_compare(&b->peer->swarm->tor->master, &b->peer->atom->addr) &&
+      b>peer->swarm->tor->masterPort == b->peer->atom->port;
   if(a_isMaster != b_isMaster)
       return a_isMaster ? -1 : 1;
 

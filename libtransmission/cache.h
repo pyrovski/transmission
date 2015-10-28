@@ -46,7 +46,8 @@ int tr_cacheReadBlock (tr_cache         * cache,
                        tr_piece_index_t   piece,
                        uint32_t           offset,
                        uint32_t           len,
-                       uint8_t          * setme);
+                       uint8_t          * setme,
+                       bool             * cached);
 
 int tr_cachePrefetchBlock (tr_cache         * cache,
                            tr_torrent       * torrent,

@@ -772,7 +772,6 @@ torrentInitFromInfo (tr_torrent * tor)
           tr_logAddNamedDbg("master", "port set to %s: %d", info->masterPort, ntohs(tor->masterPort));
       }
   }
-  //tor->master_peerIo = NULL;
 
   tor->blockSize = tr_getBlockSize (info->pieceSize);
 
@@ -926,7 +925,6 @@ torrentInit (tr_torrent * tor, const tr_ctor * ctor)
 
   tor->finishedSeedingByIdle = false;
 
-  //!@todo this is initiating a slave->master connection. Too early?
   tr_peerMgrAddTorrent (session->peerMgr, tor);
 
   assert (!tor->downloadedCur);
@@ -1693,7 +1691,6 @@ torrentStartImpl (void * vtor)
   /* start torrent on slaves */
       
   // for each slave:
-  //!@todo parse slave list into IP, port, username, and password
   //!@todo issue add request RPC
       
   // for each slave:
@@ -3366,6 +3363,7 @@ tr_torrentGotBlock (tr_torrent * tor, tr_block_index_t block)
         {
           tr_logAddTorDbg (tor, "[LAZY] checking just-completed piece %"TR_PRIuSIZE, (size_t)p);
 
+          //!@todo slaves cannot check pieces
           if (tr_torrentCheckPiece (tor, p))
             {
               tr_torrentPieceCompleted (tor, p);

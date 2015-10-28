@@ -1835,7 +1835,6 @@ static const char * tr_slaves_to_str(const tr_list * slaves){
     return result;
 }
 
-//!@todo test
 const char * 
 tr_sessionGetSlaves (const tr_session * session)
 {

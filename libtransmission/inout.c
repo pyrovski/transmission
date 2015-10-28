@@ -214,12 +214,13 @@ readOrWritePiece (tr_torrent       * tor,
 
   if(tor->hasMaster){
       if(buf && ioMode == TR_IO_READ){
-          msdbg("skipping read; fix caller");
+          msdbg("skipping read; fix caller!");
 
-          //!@todo buflen is ignored
           tr_masterRequestListAdd(tor, pieceIndex, pieceOffset);
+      } else if (ioMode == TR_IO_PREFETCH){
+          msdbg("skipping prefetch");
       }
-      /*!@todo read or write piece from/to master.
+      /*
 
         fillOutputBuffer() constructs messages, but it takes
         instructions from a tr_peerMsgs * msgs variable. These are
@@ -227,21 +228,6 @@ readOrWritePiece (tr_torrent       * tor,
         tr_peerIoSetIOFuncs() from tr_peerMsgsNew(). didWrite() -> 
         firePeerGotPieceData(). Msgs come from caller to
         didWrite(). 
-
-        disk->peer path:
-        v- UTPSocket::write_outgoing_packet()
-        utp_on_write()------|
-        v- (libevent)       v
-        event_write_cb() -> didWriteWrapper() -> ...
-        didWrite() -> peerPulse() -> fillOutputBuffer().
-        tr_peerMsgsPulse()-^
-
-        event_write_cb() -> tr_evbuffer_write() // leads to the actual
-        socket write. See libevent evbuffer_write_atmost().
-
-        Actual messages live in struct tr_peerIo member userData, a void * to a tr_peerMsgs struct.
-
-        See also: canRead.
 
         --------
         Pre-implementation: 
@@ -252,12 +238,8 @@ readOrWritePiece (tr_torrent       * tor,
 
         Writes: queue a peer piece message to the master with this
         piece data.
-
-        Reads: is there a way to perform a synchronous request from a
-        peer? This method would require fewer code changes, but may
-        pose challenges if the master-slave link ever goes down.
         
-        If not, queue a request to the master and trigger a message to
+        Queue a request to the master and trigger a message to
         the requesting peer when the piece message is received from
         the master. This requires:
 

@@ -839,6 +839,16 @@ popNextMetadataRequest (tr_peerMsgs * msgs, int * piece)
   return true;
 }
 
+static bool peekNextRequest (tr_peerMsgs * msgs, struct peer_request * setme)
+{
+  if (msgs->peer.pendingReqsToClient == 0)
+    return false;
+
+  *setme = msgs->peerAskedFor[0];
+
+  return true;
+}
+
 static bool
 popNextRequest (tr_peerMsgs * msgs, struct peer_request * setme)
 {
@@ -1825,7 +1835,6 @@ clientGotBlock (tr_peerMsgs                * msgs,
             struct evbuffer * out;
             struct evbuffer_iovec iovec[1];
             
-            //!@todo get msgs pointer for master from tr_peerIo pointer for outgoing messages
             tr_peerMsgs * masterMsgs = tr_peerMsgsCast(masterPeer);
             if(!masterMsgs){
                 tr_logSetQueueEnabled (0);
@@ -2194,6 +2203,11 @@ fillOutputBuffer (tr_peerMsgs * msgs, time_t now)
     ***  Data Blocks
     **/
 
+    /*!@todo slaves: check next request for presence in cache. If
+       present, send block without checking; otherwise, if master has
+       piece, issue request to master and leave peer request in queue.
+    */
+    
     if ((tr_peerIoGetWriteBufferSpace (msgs->io, now) >= msgs->torrent->blockSize)
         && popNextRequest (msgs, &req))
     {
@@ -2207,6 +2221,13 @@ fillOutputBuffer (tr_peerMsgs * msgs, time_t now)
             struct evbuffer * out;
             struct evbuffer_iovec iovec[1];
 
+            bool cached;
+            err = tr_cacheReadBlock (getSession (msgs)->cache, msgs->torrent, req.index, req.offset, req.length, iovec[0].iov_base, &cached);
+
+            if(msgs->torrent->hasMaster && !cached){
+                //!@todo slave can't send a block that it doesn't have
+            }
+
             out = evbuffer_new ();
             evbuffer_expand (out, msglen);
 
@@ -2216,10 +2237,10 @@ fillOutputBuffer (tr_peerMsgs * msgs, time_t now)
             evbuffer_add_uint32 (out, req.offset);
 
             evbuffer_reserve_space (out, req.length, iovec, 1);
-            err = tr_cacheReadBlock (getSession (msgs)->cache, msgs->torrent, req.index, req.offset, req.length, iovec[0].iov_base);
             iovec[0].iov_len = req.length;
             evbuffer_commit_space (out, iovec, 1);
 
+            //!@todo slaves cannot check pieces.
             /* check the piece if it needs checking... */
             if (!err && tr_torrentPieceNeedsCheck (msgs->torrent, req.index))
                 if ((err = !tr_torrentCheckPiece (msgs->torrent, req.index)))
