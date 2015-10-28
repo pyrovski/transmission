@@ -1779,9 +1779,9 @@ static tr_list * tr_parseSlaves(const char * slaves){
 
     do {
         next = index(slaves, ',');
-        if(next)
-            next++;
         tr_slave * slave = parseSlaveEntry(slaves, next);
+        if(next)
+            next = next + 1;
         slaves = next;
         
         if(slave){
