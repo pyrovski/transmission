@@ -1729,9 +1729,13 @@ static tr_slave * parseSlaveEntry(const char * entry, const char * next){
 
     const char delim[] = ":";
     char * tok = strtok(substr, delim);
-    if(tok)
-        tr_address_from_string(&slave->addr, tok);
-    else
+    if(tok){
+        int status = tr_address_from_string(&slave->addr, tok);
+        if(!status){
+            msdbg("failed to parse slave address %s", tok);
+            goto err;
+        }
+    } else
         goto err;
 
     tok = strtok(NULL, delim);
