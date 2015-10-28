@@ -250,6 +250,7 @@ tr_sessionGetPublicAddress (const tr_session * session, int tr_af_type, bool * i
     }
 
   if (is_default_value && bindinfo)
+      //!@todo tr_address_to_string is not thread-safe
     *is_default_value = !tr_strcmp0 (default_value, tr_address_to_string (&bindinfo->addr));
 
   return bindinfo ? &bindinfo->addr : NULL;
@@ -451,7 +452,9 @@ tr_sessionGetSettings (tr_session * s, tr_variant * d)
   tr_variantDictAddBool (d, TR_KEY_speed_limit_up_enabled,       tr_sessionIsSpeedLimited (s, TR_UP));
   tr_variantDictAddInt  (d, TR_KEY_umask,                        s->umask);
   tr_variantDictAddInt  (d, TR_KEY_upload_slots_per_torrent,     s->uploadSlotsPerTorrent);
+  //!@todo tr_address_to_string is not thread-safe
   tr_variantDictAddStr  (d, TR_KEY_bind_address_ipv4,            tr_address_to_string (&s->public_ipv4->addr));
+  //!@todo tr_address_to_string is not thread-safe
   tr_variantDictAddStr  (d, TR_KEY_bind_address_ipv6,            tr_address_to_string (&s->public_ipv6->addr));
   tr_variantDictAddBool (d, TR_KEY_start_added_torrents,         !tr_sessionGetPaused (s));
   tr_variantDictAddBool (d, TR_KEY_trash_original_torrent_files, tr_sessionGetDeleteSource (s));
@@ -1813,7 +1816,8 @@ static const char * tr_slaves_to_str(const tr_list * slaves){
 
     while(slaves){
         tr_slave * slave = (tr_slave *) slaves->data;
-        const char * address = tr_address_to_string(&slave->addr);
+        char address[INET6_ADDRSTRLEN];
+        tr_address_to_string_with_buf (&slave->addr, address, sizeof (address));
 
         char * entry = tr_strdup_printf("%s:%u:%s:%s",
                                         address, ntohs(slave->rpcPort),
