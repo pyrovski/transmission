@@ -666,36 +666,48 @@ tr_sys_file_write (tr_sys_file_t    handle,
   return ret;
 }
 
-bool
-tr_sys_file_write_at (tr_sys_file_t    handle,
-                      const void     * buffer,
-                      uint64_t         size,
-                      uint64_t         offset,
-                      uint64_t       * bytes_written,
-                      tr_error      ** error)
+static bool
+_tr_sys_file_write_at (tr_sys_file_t     handle,
+		       const void      * buffer,
+		       struct evbuffer * evbuf,
+		       uint64_t          size,
+		       uint64_t          offset,
+		       uint64_t        * bytes_written,
+		       tr_error       ** error)
 {
   bool ret = false;
   ssize_t my_bytes_written;
 
   TR_STATIC_ASSERT (sizeof (*bytes_written) >= sizeof (my_bytes_written), "");
 
+  assert(((buffer || evbuf) && !(buffer && evbuf)) || size == 0 );
   assert (handle != TR_BAD_SYS_FILE);
-  assert (buffer != NULL || size == 0);
   /* seek requires signed offset, so it should be in mod range */
   assert (offset < UINT64_MAX / 2);
 
+  if(buffer){
 #ifdef HAVE_PWRITE
 
-  my_bytes_written = pwrite (handle, buffer, size, offset);
+    my_bytes_written = pwrite (handle, buffer, size, offset);
 
 #else
 
-  if (lseek (handle, offset, SEEK_SET) != -1)
-    my_bytes_written = write (handle, buffer, size);
-  else
-    my_bytes_written = -1;
+    if (lseek (handle, offset, SEEK_SET) != -1)
+      my_bytes_written = write (handle, buffer, size);
+    else
+      my_bytes_written = -1;
 
 #endif
+  } else if(evbuf) {
+    /*!@todo does evbuffer_write work with files? If not, use
+       evbuffer_peek() and pwritev().
+     */
+    if (lseek (handle, offset, SEEK_SET) != -1)
+      my_bytes_written = evbuffer_write_atmost(evbuf, handle, size);
+    else
+      my_bytes_written = -1;
+  }
+    
 
   if (my_bytes_written != -1)
     {
@@ -709,6 +721,28 @@ tr_sys_file_write_at (tr_sys_file_t    handle,
     }
 
   return ret;
+}
+
+bool
+tr_sys_file_write_at (tr_sys_file_t    handle,
+                      const void     * buffer,
+                      uint64_t         size,
+                      uint64_t         offset,
+                      uint64_t       * bytes_written,
+                      tr_error      ** error)
+{
+  return _tr_sys_file_write_at(handle, buffer, NULL, size, offset, bytes_written, error);
+}
+
+bool
+tr_sys_file_writev_at (tr_sys_file_t     handle,
+		       struct evbuffer * buffer,
+		       uint64_t          size,
+		       uint64_t          offset,
+		       uint64_t        * bytes_written,
+		       tr_error       ** error)
+{
+  return _tr_sys_file_write_at(handle, NULL, buffer, size, offset, bytes_written, error);
 }
 
 bool

@@ -20,6 +20,7 @@
 #include "torrent.h"
 #include "trevent.h"
 #include "utils.h"
+#include "prof.h"
 
 #define MY_NAME "Cache"
 
@@ -169,30 +170,60 @@ flushContiguous (tr_cache * cache, int pos, int n)
 {
   int i;
   int err = 0;
-  uint8_t * buf = tr_new (uint8_t, n * MAX_BLOCK_SIZE);
-  uint8_t * walk = buf;
+  struct evbuffer * buf = evbuffer_new();
   struct cache_block ** blocks = (struct cache_block**) tr_ptrArrayBase (&cache->blocks);
 
   struct cache_block * b = blocks[pos];
   tr_torrent * tor = b->tor;
   const tr_piece_index_t piece = b->piece;
   const uint32_t offset = b->offset;
+  uint32_t length = 0;
+
+  struct timespec tsStart, tsStop;
+  clock_gettime(CLOCK_MONOTONIC, &tsStart);
+  for (i=pos; i<pos+n; ++i)
+    {
+      b = blocks[i];
+      length += b->length;
+      int status = evbuffer_add_buffer(buf, b->evbuf);
+      if(status)
+	tr_logAddError("piece buffer build error");
+      if(evbuffer_get_length(b->evbuf) != b->length)
+	tr_logAddError("block length (%lu) disagreed with buffer length (%lu)", evbuffer_get_length(b->evbuf), b->length);
+    }
+  clock_gettime(CLOCK_MONOTONIC, &tsStop);
+
+  // usually 16-30us on my Yoga 2 pro (copy reassemble)
+  tr_logAddInfo("piece reassemble time: %f", tsDiff(&tsStart, &tsStop));
+  
+
+  /*!@todo pwritev would require modification of the following callpath:
+    flushContiguous()
+    tr_ioWrite()
+    readOrWritePiece()
+    readOrWriteBytes()
+    tr_sys_file_write_at()
+    tr_sys_file_writev_at()
+   */
+  //err = tr_ioWrite (tor, piece, offset, walk-buf, buf);
+  /*!@todo we don't know that each block evbuffer is contiguous, so
+     this would benefit from evbuffer_add_buffer(). We can create a
+     single evbuffer and pass it to tr_ioWritev(). The evbuffer can be
+     written directly with evbuffer_write().
+   */
+  err = tr_ioWritev (tor, piece, offset, length, buf);
+  evbuffer_free(buf);
 
   for (i=pos; i<pos+n; ++i)
     {
       b = blocks[i];
-      evbuffer_copyout (b->evbuf, walk, b->length);
-      walk += b->length;
       evbuffer_free (b->evbuf);
       tr_free (b);
     }
   tr_ptrArrayErase (&cache->blocks, pos, pos+n);
 
-  err = tr_ioWrite (tor, piece, offset, walk-buf, buf);
-  tr_free (buf);
-
   ++cache->disk_writes;
-  cache->disk_write_bytes += walk-buf;
+  cache->disk_write_bytes += length;
   return err;
 }
 

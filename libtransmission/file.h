@@ -12,6 +12,7 @@
 
 #include <inttypes.h>
 #include <time.h>
+#include <event2/buffer.h>
 
 #ifdef _WIN32
  #include <windows.h>
@@ -437,6 +438,14 @@ bool            tr_sys_file_write_at        (tr_sys_file_t        handle,
                                              uint64_t           * bytes_written,
                                              struct tr_error   ** error);
 
+bool tr_sys_file_writev_at (tr_sys_file_t      handle,
+			    struct evbuffer *  buffer,
+			    uint64_t           size,
+			    uint64_t           offset,
+			    uint64_t        *  bytes_written,
+			    struct tr_error ** error);
+
+  
 /**
  * @brief Portability wrapper for `fsync ()`.
  *
