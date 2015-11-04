@@ -185,41 +185,19 @@ flushContiguous (tr_cache * cache, int pos, int n)
     {
       b = blocks[i];
       length += b->length;
-      int status = evbuffer_add_buffer(buf, b->evbuf);
-      if(status)
-	tr_logAddError("piece buffer build error");
-      if(evbuffer_get_length(b->evbuf) != b->length)
-	tr_logAddError("block length (%lu) disagreed with buffer length (%lu)", evbuffer_get_length(b->evbuf), b->length);
+      int status = evbuffer_remove_buffer(b->evbuf, buf, b->length);
+      evbuffer_free (b->evbuf);
+      tr_free (b);
     }
   clock_gettime(CLOCK_MONOTONIC, &tsStop);
 
   // usually 16-30us on my Yoga 2 pro (copy reassemble)
-  tr_logAddInfo("piece reassemble time: %f", tsDiff(&tsStart, &tsStop));
-  
+  tr_logAddInfo("piece %u reassemble time: %f", b->piece, tsDiff(&tsStart, &tsStop));
 
-  /*!@todo pwritev would require modification of the following callpath:
-    flushContiguous()
-    tr_ioWrite()
-    readOrWritePiece()
-    readOrWriteBytes()
-    tr_sys_file_write_at()
-    tr_sys_file_writev_at()
-   */
-  //err = tr_ioWrite (tor, piece, offset, walk-buf, buf);
-  /*!@todo we don't know that each block evbuffer is contiguous, so
-     this would benefit from evbuffer_add_buffer(). We can create a
-     single evbuffer and pass it to tr_ioWritev(). The evbuffer can be
-     written directly with evbuffer_write().
-   */
+  //!@todo checksum failures.
   err = tr_ioWritev (tor, piece, offset, length, buf);
   evbuffer_free(buf);
 
-  for (i=pos; i<pos+n; ++i)
-    {
-      b = blocks[i];
-      evbuffer_free (b->evbuf);
-      tr_free (b);
-    }
   tr_ptrArrayErase (&cache->blocks, pos, pos+n);
 
   ++cache->disk_writes;
