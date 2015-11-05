@@ -180,12 +180,12 @@ readOrWriteBytes (tr_session       * session,
 /* returns 0 on success, or an errno on failure */
 static int
 readvOrWritevBytes (tr_session       * session,
-                  tr_torrent       * tor,
-                  int                ioMode,
-                  tr_file_index_t    fileIndex,
-                  uint64_t           fileOffset,
-		  struct evbuffer  * buf,
-                  size_t             buflen)
+		    tr_torrent       * tor,
+		    int                ioMode,
+		    tr_file_index_t    fileIndex,
+		    uint64_t           fileOffset,
+		    struct evbuffer  * buf,
+		    size_t             buflen)
 {
   return _readOrWriteBytes(session, tor, ioMode, fileIndex, fileOffset, NULL, buf, buflen);
 }
@@ -269,6 +269,8 @@ _readOrWritePiece (tr_torrent       * tor,
       }
 
       buflen -= bytesThisPass;
+
+      //!@todo this assumes bytes remain due to a file boundary.
       fileIndex++;
       fileOffset = 0;
 

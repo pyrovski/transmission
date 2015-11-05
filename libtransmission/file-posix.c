@@ -676,7 +676,8 @@ _tr_sys_file_write_at (tr_sys_file_t     handle,
 		       tr_error       ** error)
 {
   bool ret = false;
-  ssize_t my_bytes_written;
+  ssize_t my_bytes_written = 0;
+  ssize_t total_bytes_written = 0;
 
   TR_STATIC_ASSERT (sizeof (*bytes_written) >= sizeof (my_bytes_written), "");
 
@@ -698,13 +699,21 @@ _tr_sys_file_write_at (tr_sys_file_t     handle,
       my_bytes_written = -1;
 
 #endif
+    total_bytes_written = my_bytes_written;
   } else if(evbuf) {
     /*!@todo does evbuffer_write work with files? If not, use
        evbuffer_peek() and pwritev().
      */
-    if (lseek (handle, offset, SEEK_SET) != -1)
-      my_bytes_written = evbuffer_write_atmost(evbuf, handle, size);
-    else
+    if (lseek (handle, offset, SEEK_SET) != -1){
+      ssize_t left = size;
+      do {
+	my_bytes_written = evbuffer_write_atmost(evbuf, handle, -1);
+	if(my_bytes_written != -1){
+	  left -= my_bytes_written;
+	  total_bytes_written += my_bytes_written;
+	}
+      } while (my_bytes_written != -1 && left > 0);
+    } else
       my_bytes_written = -1;
   }
     
@@ -712,7 +721,7 @@ _tr_sys_file_write_at (tr_sys_file_t     handle,
   if (my_bytes_written != -1)
     {
       if (bytes_written != NULL)
-        *bytes_written = my_bytes_written;
+        *bytes_written = total_bytes_written;
       ret = true;
     }
   else
