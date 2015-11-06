@@ -366,7 +366,7 @@ tr_variantGetBool (const tr_variant * v, bool * setme)
 }
 
 bool
-tr_variantGetReal (const tr_variant * v, double * setme)
+tr_variantGetReal (const tr_variant * v, float * setme)
 {
   bool success = false;
 
@@ -380,7 +380,7 @@ tr_variantGetReal (const tr_variant * v, double * setme)
     {
       char * endptr;
       struct locale_context locale_ctx;
-      double d;
+      float d;
 
       /* the json spec requires a '.' decimal point regardless of locale */
       use_numeric_locale (&locale_ctx, "C");
@@ -415,7 +415,7 @@ tr_variantDictFindBool (tr_variant      * dict,
 bool
 tr_variantDictFindReal (tr_variant      * dict,
                         const tr_quark    key,
-                        double          * setme)
+                        float          * setme)
 {
   tr_variant * child = tr_variantDictFind (dict, key);
   return tr_variantGetReal (child, setme);
@@ -490,7 +490,7 @@ tr_variantInitBool (tr_variant * v, bool value)
 }
 
 void
-tr_variantInitReal (tr_variant * v, double value)
+tr_variantInitReal (tr_variant * v, float value)
 {
   tr_variantInit (v, TR_VARIANT_TYPE_REAL);
   v->val.d = value;
@@ -577,7 +577,7 @@ tr_variantListAddInt (tr_variant  * list,
 
 tr_variant *
 tr_variantListAddReal (tr_variant  * list,
-                       double        val)
+                       float        val)
 {
   tr_variant * child = tr_variantListAdd (list);
   tr_variantInitReal (child, val);
@@ -704,7 +704,7 @@ tr_variantDictAddBool (tr_variant      * dict,
 tr_variant*
 tr_variantDictAddReal (tr_variant      * dict,
                        const tr_quark    key,
-                       double            val)
+                       float            val)
 {
   tr_variant * child = dictFindOrAdd (dict, key, TR_VARIANT_TYPE_REAL);
   tr_variantInitReal (child, val);
@@ -1034,7 +1034,7 @@ tr_variantListCopy (tr_variant * target, const tr_variant * src)
        }
      else if (tr_variantIsReal (val))
        {
-         double realVal = 0;
+         float realVal = 0;
          tr_variantGetReal (val, &realVal);
          tr_variantListAddReal (target, realVal);
        }
@@ -1119,7 +1119,7 @@ tr_variantMergeDicts (tr_variant * target, const tr_variant * source)
             }
           else if (tr_variantIsReal (val))
             {
-              double realVal = 0;
+              float realVal = 0;
               tr_variantGetReal (val, &realVal);
               tr_variantDictAddReal (target, key, realVal);
             }

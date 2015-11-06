@@ -294,7 +294,7 @@ loadRatioLimits (tr_variant * dict, tr_torrent * tor)
   if (tr_variantDictFindDict (dict, TR_KEY_ratio_limit, &d))
     {
       int64_t i;
-      double dratio;
+      float dratio;
 
       if (tr_variantDictFindReal (d, TR_KEY_ratio_limit, &dratio))
         tr_torrentSetRatioLimit (tor, dratio);

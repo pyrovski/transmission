@@ -63,9 +63,9 @@ tr_cpDestruct (tr_completion * cp)
 *** General
 **/
 
-double            tr_cpPercentComplete (const tr_completion * cp);
+float             tr_cpPercentComplete (const tr_completion * cp);
 
-double            tr_cpPercentDone (const tr_completion * cp);
+float             tr_cpPercentDone (const tr_completion * cp);
 
 tr_completeness   tr_cpGetStatus (const tr_completion *);
 

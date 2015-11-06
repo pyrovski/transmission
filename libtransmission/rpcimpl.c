@@ -1254,7 +1254,7 @@ torrentSet (tr_session               * session,
   for (i=0; i<torrentCount; ++i)
     {
       int64_t tmp;
-      double d;
+      float d;
       tr_variant * files;
       tr_variant * trackers;
       bool boolVal;
@@ -1832,7 +1832,7 @@ sessionSet (tr_session               * session,
             struct tr_rpc_idle_data  * idle_data UNUSED)
 {
   int64_t i;
-  double d;
+  float d;
   bool boolVal;
   const char * str;
 

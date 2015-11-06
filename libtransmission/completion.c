@@ -319,10 +319,10 @@ tr_cpCreatePieceBitfield (const tr_completion * cp, size_t * byte_count)
   return ret;
 }
 
-double
+float
 tr_cpPercentComplete (const tr_completion * cp)
 {
-  const double ratio = tr_getRatio (cp->sizeNow, cp->tor->info.totalSize);
+  const float ratio = tr_getRatio (cp->sizeNow, cp->tor->info.totalSize);
 
   if ((int)ratio == TR_RATIO_NA)
     return 0.0;
@@ -332,10 +332,10 @@ tr_cpPercentComplete (const tr_completion * cp)
     return ratio;
 }
 
-double
+float
 tr_cpPercentDone (const tr_completion * cp)
 {
-  const double ratio = tr_getRatio (cp->sizeNow, tr_cpSizeWhenDone (cp));
+  const float ratio = tr_getRatio (cp->sizeNow, tr_cpSizeWhenDone (cp));
   const int iratio = (int)ratio;
   return ((iratio == TR_RATIO_NA) || (iratio == TR_RATIO_INF)) ? 0.0 : ratio;
 }

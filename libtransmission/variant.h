@@ -79,7 +79,7 @@ typedef struct tr_variant
     {
       bool b;
 
-      double d;
+      float d;
 
       int64_t i;
 
@@ -229,10 +229,10 @@ tr_variantIsReal (const tr_variant * v)
 }
 
 void         tr_variantInitReal        (tr_variant       * initme,
-                                        double             value);
+                                        float             value);
 
 bool         tr_variantGetReal         (const tr_variant * variant,
-                                        double           * value_setme);
+                                        float           * value_setme);
 
 /***
 ****  Booleans
@@ -292,7 +292,7 @@ tr_variant * tr_variantListAddInt      (tr_variant       * list,
                                         int64_t            addme);
 
 tr_variant * tr_variantListAddReal     (tr_variant       * list,
-                                        double             addme);
+                                        float             addme);
 
 tr_variant * tr_variantListAddStr      (tr_variant       * list,
                                         const char       * addme);
@@ -343,7 +343,7 @@ tr_variant * tr_variantDictAdd         (tr_variant       * dict,
 
 tr_variant * tr_variantDictAddReal     (tr_variant       * dict,
                                         const tr_quark     key,
-                                        double             value);
+                                        float             value);
 
 tr_variant * tr_variantDictAddInt      (tr_variant       * dict,
                                         const tr_quark     key,
@@ -400,7 +400,7 @@ bool         tr_variantDictFindInt     (tr_variant       * dict,
 
 bool         tr_variantDictFindReal    (tr_variant       * dict,
                                         const tr_quark     key,
-                                        double           * setme);
+                                        float           * setme);
 
 bool         tr_variantDictFindBool    (tr_variant       * dict,
                                         const tr_quark     key,

@@ -758,7 +758,7 @@ static void
 sessionSetImpl (void * vdata)
 {
   int64_t i;
-  double  d;
+  float  d;
   bool boolVal;
   const char * str;
   struct tr_bindinfo b;
@@ -1179,7 +1179,7 @@ tr_sessionSetRatioLimited (tr_session * session, bool isLimited)
 }
 
 void
-tr_sessionSetRatioLimit (tr_session * session, double desiredRatio)
+tr_sessionSetRatioLimit (tr_session * session, float desiredRatio)
 {
   assert (tr_isSession (session));
 
@@ -1194,7 +1194,7 @@ tr_sessionIsRatioLimited (const tr_session  * session)
   return session->isRatioLimited;
 }
 
-double
+float
 tr_sessionGetRatioLimit (const tr_session * session)
 {
   assert (tr_isSession (session));
@@ -1264,7 +1264,7 @@ tr_sessionGetActiveSpeedLimit_Bps (const tr_session * session, tr_direction dir,
 bool
 tr_sessionGetActiveSpeedLimit_KBps (const tr_session  * session,
                                     tr_direction        dir,
-                                    double            * setme_KBps)
+                                    float            * setme_KBps)
 {
   unsigned int Bps = 0;
   const bool is_active = tr_sessionGetActiveSpeedLimit_Bps (session, dir, &Bps);
@@ -1729,7 +1729,7 @@ tr_sessionGetRawSpeed_Bps (const tr_session * session, tr_direction dir)
 {
   return tr_isSession (session) ? tr_bandwidthGetRawSpeed_Bps (&session->bandwidth, 0, dir) : 0;
 }
-double
+float
 tr_sessionGetRawSpeed_KBps (const tr_session * session, tr_direction dir)
 {
   return toSpeedKBps (tr_sessionGetRawSpeed_Bps (session, dir));

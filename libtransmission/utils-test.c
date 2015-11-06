@@ -361,7 +361,7 @@ static int
 test_truncd (void)
 {
   char buf[32];
-  const double nan = sqrt (-1);
+  const float nan = sqrt (-1);
 
   tr_snprintf (buf, sizeof (buf), "%.2f%%", 99.999);
   check_streq ("100.00%", buf);

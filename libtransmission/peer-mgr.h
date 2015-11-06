@@ -170,7 +170,7 @@ void         tr_peerMgrOnBlocklistChanged   (tr_peerMgr         * manager);
 struct tr_peer_stat * tr_peerMgrPeerStats   (const tr_torrent   * tor,
                                              int                * setmeCount);
 
-double *     tr_peerMgrWebSpeeds_KBps       (const tr_torrent   * tor);
+float *      tr_peerMgrWebSpeeds_KBps       (const tr_torrent   * tor);
 
 unsigned int tr_peerGetPieceSpeed_Bps       (const tr_peer      * peer,
                                              uint64_t             now,

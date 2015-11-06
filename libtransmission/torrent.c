@@ -316,7 +316,7 @@ tr_torrentGetRatioMode (const tr_torrent * tor)
 }
 
 void
-tr_torrentSetRatioLimit (tr_torrent * tor, double desiredRatio)
+tr_torrentSetRatioLimit (tr_torrent * tor, float desiredRatio)
 {
   assert (tr_isTorrent (tor));
 
@@ -328,7 +328,7 @@ tr_torrentSetRatioLimit (tr_torrent * tor, double desiredRatio)
     }
 }
 
-double
+float
 tr_torrentGetRatioLimit (const tr_torrent * tor)
 {
   assert (tr_isTorrent (tor));
@@ -337,7 +337,7 @@ tr_torrentGetRatioLimit (const tr_torrent * tor)
 }
 
 bool
-tr_torrentGetSeedRatio (const tr_torrent * tor, double * ratio)
+tr_torrentGetSeedRatio (const tr_torrent * tor, float * ratio)
 {
   bool isLimited;
 
@@ -372,7 +372,7 @@ tr_torrentGetSeedRatioBytes (const tr_torrent  * tor,
                              uint64_t          * setmeLeft,
                              uint64_t          * setmeGoal)
 {
-  double seedRatio;
+  float seedRatio;
   bool seedRatioApplies = false;
 
   assert (tr_isTorrent (tor));
@@ -1221,10 +1221,10 @@ tr_torrentIsStalled (const tr_torrent * tor)
 }
 
 
-static double
+static float
 getVerifyProgress (const tr_torrent * tor)
 {
-  double d = 0;
+  float d = 0;
 
   if (tr_torrentHasMetadata (tor))
     {
@@ -1235,7 +1235,7 @@ getVerifyProgress (const tr_torrent * tor)
         if (tor->info.pieces[i].timeChecked)
           ++checked;
 
-      d = checked / (double)tor->info.pieceCount;
+      d = checked / (float)tor->info.pieceCount;
     }
 
   return d;
@@ -1382,7 +1382,7 @@ tr_torrentStat (tr_torrent * tor)
   else if (!seedRatioBytesGoal) /* impossible? safeguard for div by zero */
     s->seedRatioPercentDone = 0;
   else
-    s->seedRatioPercentDone = (double)(seedRatioBytesGoal - seedRatioBytesLeft) / seedRatioBytesGoal;
+    s->seedRatioPercentDone = (float)(seedRatioBytesGoal - seedRatioBytesLeft) / seedRatioBytesGoal;
 
   /* test some of the constraints */
   assert (s->sizeWhenDone <= tor->info.totalSize);
@@ -1472,7 +1472,7 @@ tr_torrentFilesFree (tr_file_stat     * files,
 ****
 ***/
 
-double*
+float*
 tr_torrentWebSpeeds_KBps (const tr_torrent * tor)
 {
   assert (tr_isTorrent (tor));
@@ -3101,7 +3101,7 @@ struct LocationData
 {
   bool move_from_old_location;
   volatile int * setme_state;
-  volatile double * setme_progress;
+  volatile float * setme_progress;
   char * location;
   tr_torrent * tor;
 };
@@ -3114,7 +3114,7 @@ setLocation (void * vdata)
   tr_torrent * tor = data->tor;
   const bool do_move = data->move_from_old_location;
   const char * location = data->location;
-  double bytesHandled = 0;
+  float bytesHandled = 0;
   tr_torrentLock (tor);
 
   assert (tr_isTorrent (tor));
@@ -3204,7 +3204,7 @@ void
 tr_torrentSetLocation (tr_torrent       * tor,
                        const char       * location,
                        bool               move_from_old_location,
-                       volatile double  * setme_progress,
+                       volatile float  * setme_progress,
                        volatile int     * setme_state)
 {
   struct LocationData * data;

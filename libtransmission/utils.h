@@ -376,7 +376,7 @@ int  tr_urlParse (const char * url,
 
 /** @brief return TR_RATIO_NA, TR_RATIO_INF, or a number in [0..1]
     @return TR_RATIO_NA, TR_RATIO_INF, or a number in [0..1] */
-double tr_getRatio (uint64_t numerator, uint64_t denominator);
+float tr_getRatio (uint64_t numerator, uint64_t denominator);
 
 /**
  * @brief Given a string like "1-4" or "1-4,6,9,14-51", this returns a
@@ -392,7 +392,7 @@ int* tr_parseNumberRange (const char * str,
 
 
 /**
- * @brief truncate a double value at a given number of decimal places.
+ * @brief truncate a float value at a given number of decimal places.
  *
  * this can be used to prevent a printf () call from rounding up:
  * call with the decimal_places argument equal to the number of
@@ -405,10 +405,10 @@ int* tr_parseNumberRange (const char * str,
  *             |   These should match   |
  *             +------------------------+
  */
-double tr_truncd (double x, int decimal_places);
+float tr_truncd (float x, int decimal_places);
 
 /* return a percent formatted string of either x.xx, xx.x or xxx */
-char* tr_strpercent (char * buf, double x, size_t buflen);
+char* tr_strpercent (char * buf, float x, size_t buflen);
 
 /**
  * @param buf the buffer to write the string to
@@ -416,7 +416,7 @@ char* tr_strpercent (char * buf, double x, size_t buflen);
  * @param ratio the ratio to convert to a string
  * @param the string represntation of "infinity"
  */
-char* tr_strratio (char * buf, size_t buflen, double ratio, const char * infinity) TR_GNUC_NONNULL (1,4);
+char* tr_strratio (char * buf, size_t buflen, float ratio, const char * infinity) TR_GNUC_NONNULL (1,4);
 
 /** @brief Portability wrapper for localtime_r () that uses the system implementation if available */
 struct tm * tr_localtime_r (const time_t *_clock, struct tm *_result);
@@ -487,13 +487,13 @@ extern unsigned int tr_mem_K;
 extern unsigned int tr_size_K;
 
 /* format a speed from KBps into a user-readable string. */
-char* tr_formatter_speed_KBps (char * buf, double KBps, size_t buflen);
+char* tr_formatter_speed_KBps (char * buf, float KBps, size_t buflen);
 
 /* format a memory size from bytes into a user-readable string. */
 char* tr_formatter_mem_B (char * buf, int64_t bytes, size_t buflen);
 
 /* format a memory size from MB into a user-readable string. */
-static inline char* tr_formatter_mem_MB (char * buf, double MBps, size_t buflen) { return tr_formatter_mem_B (buf, MBps * tr_mem_K * tr_mem_K, buflen); }
+static inline char* tr_formatter_mem_MB (char * buf, float MBps, size_t buflen) { return tr_formatter_mem_B (buf, MBps * tr_mem_K * tr_mem_K, buflen); }
 
 /* format a file size from bytes into a user-readable string. */
 char* tr_formatter_size_B (char * buf, int64_t bytes, size_t buflen);

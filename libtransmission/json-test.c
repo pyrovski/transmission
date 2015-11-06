@@ -31,7 +31,7 @@ test_elements (void)
     tr_variant top;
     const char * str;
     bool f;
-    double d;
+    float d;
     int64_t i;
     int err = 0;
     tr_quark key;

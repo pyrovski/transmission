@@ -489,7 +489,7 @@ tr_webThreadFunc (void * vsession)
         {
           if ((msg->msg == CURLMSG_DONE) && (msg->easy_handle != NULL))
             {
-              double total_time;
+              float total_time;
               struct tr_web_task * task;
               long req_bytes_sent;
               CURL * e = msg->easy_handle;

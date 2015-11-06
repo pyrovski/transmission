@@ -612,13 +612,13 @@ tr_strlcpy (char * dst, const void * src, size_t siz)
 ****
 ***/
 
-double
+float
 tr_getRatio (uint64_t numerator, uint64_t denominator)
 {
-  double ratio;
+  float ratio;
 
   if (denominator > 0)
-    ratio = numerator / (double)denominator;
+    ratio = numerator / (float)denominator;
   else if (numerator > 0)
     ratio = TR_RATIO_INF;
   else
@@ -1383,8 +1383,8 @@ tr_parseNumberRange (const char * str_in, int len, int * setmeCount)
 ****
 ***/
 
-double
-tr_truncd (double x, int precision)
+float
+tr_truncd (float x, int precision)
 {
   char * pt;
   char buf[128];
@@ -1395,16 +1395,16 @@ tr_truncd (double x, int precision)
   return atof (buf);
 }
 
-/* return a truncated double as a string */
+/* return a truncated float as a string */
 static char*
-tr_strtruncd (char * buf, double x, int precision, size_t buflen)
+tr_strtruncd (char * buf, float x, int precision, size_t buflen)
 {
   tr_snprintf (buf, buflen, "%.*f", precision, tr_truncd (x, precision));
   return buf;
 }
 
 char*
-tr_strpercent (char * buf, double x, size_t buflen)
+tr_strpercent (char * buf, float x, size_t buflen)
 {
   if (x < 100.0)
     tr_strtruncd (buf, x, 1, buflen);
@@ -1415,7 +1415,7 @@ tr_strpercent (char * buf, double x, size_t buflen)
 }
 
 char*
-tr_strratio (char * buf, size_t buflen, double ratio, const char * infinity)
+tr_strratio (char * buf, size_t buflen, float ratio, const char * infinity)
 {
   if ((int)ratio == TR_RATIO_NA)
     tr_strlcpy (buf, _("None"), buflen);
@@ -1644,7 +1644,7 @@ formatter_get_size_str (const struct formatter_units * u,
                         char * buf, int64_t bytes, size_t buflen)
 {
   int precision;
-  double value;
+  float value;
   const char * units;
   const struct formatter_unit * unit;
 
@@ -1653,7 +1653,7 @@ formatter_get_size_str (const struct formatter_units * u,
   else if (bytes < u->units[3].value) unit = &u->units[2];
   else                                unit = &u->units[3];
 
-  value = (double)bytes / unit->value;
+  value = (float)bytes / unit->value;
   units = unit->name;
 
   if (unit->value == 1)
@@ -1697,10 +1697,10 @@ tr_formatter_speed_init (unsigned int kilo,
 }
 
 char*
-tr_formatter_speed_KBps (char * buf, double KBps, size_t buflen)
+tr_formatter_speed_KBps (char * buf, float KBps, size_t buflen)
 {
-  const double K = speed_units.units[TR_FMT_KB].value;
-  double speed = KBps;
+  const float K = speed_units.units[TR_FMT_KB].value;
+  float speed = KBps;
 
   if (speed <= 999.95) /* 0.0 KB to 999.9 KB */
     {

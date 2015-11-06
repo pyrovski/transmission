@@ -507,7 +507,7 @@ testParse2 (void)
   tr_variant top2;
   int64_t intVal;
   const char * strVal;
-  double realVal;
+  float realVal;
   bool boolVal;
   int len;
   char * benc;

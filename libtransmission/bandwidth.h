@@ -157,7 +157,7 @@ tr_bandwidthSetDesiredSpeed_Bps (tr_bandwidth  * bandwidth,
  * @brief Get the desired speed for the bandwidth subtree.
  * @see tr_bandwidthSetDesiredSpeed
  */
-static inline double
+static inline float
 tr_bandwidthGetDesiredSpeed_Bps (const tr_bandwidth  * bandwidth, tr_direction dir)
 {
   return bandwidth->band[dir].desiredSpeed_Bps;

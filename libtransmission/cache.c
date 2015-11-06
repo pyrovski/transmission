@@ -255,7 +255,7 @@ cacheTrim (tr_cache * cache)
 static int
 getMaxBlocks (int64_t max_bytes)
 {
-  return max_bytes / (double)MAX_BLOCK_SIZE;
+  return max_bytes / MAX_BLOCK_SIZE;
 }
 
 int

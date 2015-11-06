@@ -2655,20 +2655,20 @@ tr_peerMgrGetDesiredAvailable (const tr_torrent * tor)
   return desiredAvailable;
 }
 
-double*
+float*
 tr_peerMgrWebSpeeds_KBps (const tr_torrent * tor)
 {
   unsigned int i;
   tr_swarm * s;
   unsigned int n;
-  double * ret = NULL;
+  float * ret = NULL;
   const uint64_t now = tr_time_msec ();
 
   assert (tr_isTorrent (tor));
 
   s = tor->swarm;
   n = tr_ptrArraySize (&s->webseeds);
-  ret = tr_new0 (double, n);
+  ret = tr_new0 (float, n);
 
   assert (s->manager != NULL);
   assert (n == tor->info.webseedCount);
@@ -2677,7 +2677,7 @@ tr_peerMgrWebSpeeds_KBps (const tr_torrent * tor)
     {
       unsigned int Bps = 0;
       if (tr_peerIsTransferringPieces (tr_ptrArrayNth(&s->webseeds,i), now, TR_DOWN, &Bps))
-        ret[i] = Bps / (double)tr_speed_K;
+        ret[i] = Bps / (float)tr_speed_K;
       else
         ret[i] = -1.0;
     }
@@ -2881,12 +2881,12 @@ rechokeDownloads (tr_swarm * s)
       {
         /* cancelRate: of the block requests we've recently made, the percentage we cancelled.
          * higher values indicate more congestion. */
-        const double cancelRate = cancels / (double)(cancels + blocks);
-        const double mult = 1 - MIN (cancelRate, 0.5);
+        const float cancelRate = cancels / (float)(cancels + blocks);
+        const float mult = 1.0f - MIN (cancelRate, 0.5f);
         maxPeers = s->interestedCount * mult;
         tordbg (s, "cancel rate is %.3f -- reducing the "
                    "number of peers we're interested in by %.0f percent",
-                   cancelRate, mult * 100);
+                   cancelRate, mult * 100.0f);
         s->lastCancel = now;
       }
 
@@ -2895,7 +2895,7 @@ rechokeDownloads (tr_swarm * s)
       {
         const int maxIncrease = 15;
         const time_t maxHistory = 2 * CANCEL_HISTORY_SEC;
-        const double mult = MIN (timeSinceCancel, maxHistory) / (double) maxHistory;
+        const float mult = MIN (timeSinceCancel, maxHistory) / (float) maxHistory;
         const int inc = maxIncrease * mult;
         maxPeers = s->maxPeers + inc;
         tordbg (s, "time since last cancel is %"PRIdMAX" -- increasing the "

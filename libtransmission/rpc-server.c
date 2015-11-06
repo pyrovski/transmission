@@ -371,7 +371,7 @@ add_response (struct evhttp_request * req,
 
 #if 0
           fprintf (stderr, "compressed response is %.2f of original (raw==%"TR_PRIuSIZE" bytes; compressed==%"TR_PRIuSIZE")\n",
-                   (double)evbuffer_get_length (out)/content_len,
+                   (float)evbuffer_get_length (out)/content_len,
                    content_len, evbuffer_get_length (out));
 #endif
           evhttp_add_header (req->output_headers,

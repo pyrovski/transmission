@@ -297,8 +297,8 @@ static inline bool tr_isPriority (tr_priority_t p)
 
 static inline unsigned int
 toSpeedBytes (unsigned int KBps) { return KBps * tr_speed_K; }
-static inline double
-toSpeedKBps (unsigned int Bps)  { return Bps / (double)tr_speed_K; }
+static inline float
+toSpeedKBps (unsigned int Bps)  { return Bps / (float)tr_speed_K; }
 
 static inline uint64_t
 toMemBytes (unsigned int MB) { uint64_t B = tr_mem_K * tr_mem_K; B *= MB; return B; }

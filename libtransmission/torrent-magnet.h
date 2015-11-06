@@ -30,6 +30,6 @@ bool tr_torrentGetNextMetadataRequest (tr_torrent * tor, time_t now, int * setme
 
 void tr_torrentSetMetadataSizeHint (tr_torrent * tor, int metadata_size);
 
-double tr_torrentGetMetadataPercent (const tr_torrent * tor);
+float tr_torrentGetMetadataPercent (const tr_torrent * tor);
 
 #endif

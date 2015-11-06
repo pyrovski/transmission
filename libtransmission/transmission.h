@@ -661,19 +661,19 @@ void  tr_sessionSetAltSpeedFunc  (tr_session *, tr_altSpeedFunc, void *);
 
 bool  tr_sessionGetActiveSpeedLimit_KBps (const tr_session  * session,
                                           tr_direction        dir,
-                                          double            * setme);
+                                          float            * setme);
 
 /***
 ****
 ***/
 
-double     tr_sessionGetRawSpeed_KBps (const tr_session *, tr_direction);
+float     tr_sessionGetRawSpeed_KBps (const tr_session *, tr_direction);
 
 void       tr_sessionSetRatioLimited (tr_session *, bool isLimited);
 bool       tr_sessionIsRatioLimited (const tr_session *);
 
-void       tr_sessionSetRatioLimit  (tr_session *, double desiredRatio);
-double     tr_sessionGetRatioLimit  (const tr_session *);
+void       tr_sessionSetRatioLimit  (tr_session *, float desiredRatio);
+float     tr_sessionGetRatioLimit  (const tr_session *);
 
 void       tr_sessionSetIdleLimited (tr_session *, bool isLimited);
 bool       tr_sessionIsIdleLimited (const tr_session *);
@@ -1189,7 +1189,7 @@ enum
 void tr_torrentSetLocation (tr_torrent       * torrent,
                             const char       * location,
                             bool               move_from_previous_location,
-                            volatile double  * setme_progress,
+                            volatile float  * setme_progress,
                             volatile int     * setme_state);
 
 uint64_t tr_torrentGetBytesLeftToAllocate (const tr_torrent * torrent);
@@ -1267,12 +1267,12 @@ void          tr_torrentSetRatioMode (tr_torrent         * tor,
 tr_ratiolimit tr_torrentGetRatioMode (const tr_torrent   * tor);
 
 void          tr_torrentSetRatioLimit (tr_torrent        * tor,
-                                       double              ratio);
+                                       float              ratio);
 
-double        tr_torrentGetRatioLimit (const tr_torrent  * tor);
+float        tr_torrentGetRatioLimit (const tr_torrent  * tor);
 
 
-bool          tr_torrentGetSeedRatio  (const tr_torrent *, double * ratio);
+bool          tr_torrentGetSeedRatio  (const tr_torrent *, float * ratio);
 
 
 /****
@@ -1551,8 +1551,8 @@ typedef struct tr_peer_stat
     char     flagStr[32];
 
     float    progress;
-    double   rateToPeer_KBps;
-    double   rateToClient_KBps;
+    float   rateToPeer_KBps;
+    float   rateToClient_KBps;
 
 
 /***
@@ -1717,7 +1717,7 @@ void tr_torrentTrackersFree (tr_tracker_stat * trackerStats,
  *         return -1 instead of 0 KiB/s.
  *         NOTE: always free this array with tr_free () when you're done with it.
  */
-double*  tr_torrentWebSpeeds_KBps (const tr_torrent * torrent);
+float*  tr_torrentWebSpeeds_KBps (const tr_torrent * torrent);
 
 typedef struct tr_file_stat
 {

@@ -323,9 +323,9 @@ bandwidthClamp (const tr_bandwidth  * b,
            * clamp down harder on the bytes available */
           if (byteCount > 0)
             {
-              double current;
-              double desired;
-              double r;
+              float current;
+              float desired;
+              float r;
 
               if (now == 0)
                 now = tr_time_msec ();
