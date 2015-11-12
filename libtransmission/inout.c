@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <stdlib.h> /* bsearch () */
 #include <string.h> /* memcmp () */
+#include <stdio.h>
 
 #include "transmission.h"
 #include "cache.h" /* tr_cacheReadBlock () */
@@ -37,16 +38,22 @@ enum
   TR_IO_WRITE
 };
 
-/* returns 0 on success, or an errno on failure */
 static int
-readOrWriteBytes (tr_session       * session,
-                  tr_torrent       * tor,
-                  int                ioMode,
-                  tr_file_index_t    fileIndex,
-                  uint64_t           fileOffset,
-                  void             * buf,
-                  size_t             buflen)
+_readOrWriteBytes (tr_session       * session,
+		   tr_torrent       * tor,
+		   int                ioMode,
+		   tr_file_index_t    fileIndex,
+		   uint64_t           fileOffset,
+		   void             * buf,
+		   struct evbuffer  * evbuf,
+		   size_t             buflen)
 {
+  assert((buf || evbuf) && !(buf && evbuf) || ioMode == TR_IO_PREFETCH);
+  if(evbuf && ioMode != TR_IO_WRITE){
+    fprintf(stderr, "Attempted readv; not supported yet.\n");
+    exit(1);
+  }    
+
   tr_sys_file_t fd;
   int err = 0;
   const bool doWrite = ioMode >= TR_IO_WRITE;
@@ -132,7 +139,12 @@ readOrWriteBytes (tr_session       * session,
         }
       else if (ioMode == TR_IO_WRITE)
         {
-          if (!tr_sys_file_write_at (fd, buf, buflen, fileOffset, NULL, &error))
+	  int status = 0;
+	  if(buf)
+	    status = tr_sys_file_write_at (fd, buf, buflen, fileOffset, NULL, &error);
+	  else if(evbuf)
+	    status = tr_sys_file_writev_at (fd, evbuf, buflen, fileOffset, NULL, &error);
+          if (!status)
             {
               err = error->code;
               tr_logAddTorErr (tor, "write failed for \"%s\": %s", file->name, error->message);
@@ -150,6 +162,32 @@ readOrWriteBytes (tr_session       * session,
     }
 
   return err;
+}
+
+/* returns 0 on success, or an errno on failure */
+static int
+readOrWriteBytes (tr_session       * session,
+                  tr_torrent       * tor,
+                  int                ioMode,
+                  tr_file_index_t    fileIndex,
+                  uint64_t           fileOffset,
+                  void             * buf,
+                  size_t             buflen)
+{
+  return _readOrWriteBytes(session, tor, ioMode, fileIndex, fileOffset, buf, NULL, buflen);
+}
+
+/* returns 0 on success, or an errno on failure */
+static int
+readvOrWritevBytes (tr_session       * session,
+		    tr_torrent       * tor,
+		    int                ioMode,
+		    tr_file_index_t    fileIndex,
+		    uint64_t           fileOffset,
+		    struct evbuffer  * buf,
+		    size_t             buflen)
+{
+  return _readOrWriteBytes(session, tor, ioMode, fileIndex, fileOffset, NULL, buf, buflen);
 }
 
 static int
@@ -196,13 +234,16 @@ tr_ioFindFileLocation (const tr_torrent * tor,
 
 /* returns 0 on success, or an errno on failure */
 static int
-readOrWritePiece (tr_torrent       * tor,
-                  int                ioMode,
-                  tr_piece_index_t   pieceIndex,
-                  uint32_t           pieceOffset,
-                  uint8_t          * buf,
-                  size_t             buflen)
+_readOrWritePiece (tr_torrent       * tor,
+		   int                ioMode,
+		   tr_piece_index_t   pieceIndex,
+		   uint32_t           pieceOffset,
+		   uint8_t          * buf,
+		   struct evbuffer  * evbuf,
+		   size_t             buflen)
 {
+  assert(((buf || evbuf) && !(buf && evbuf)) || ioMode == TR_IO_PREFETCH);
+
   int err = 0;
   tr_file_index_t fileIndex;
   uint64_t fileOffset;
@@ -219,8 +260,13 @@ readOrWritePiece (tr_torrent       * tor,
       const tr_file * file = &info->files[fileIndex];
       const uint64_t bytesThisPass = MIN (buflen, file->length - fileOffset);
 
-      err = readOrWriteBytes (tor->session, tor, ioMode, fileIndex, fileOffset, buf, bytesThisPass);
-      buf += bytesThisPass;
+      if(evbuf){
+	err = readvOrWritevBytes (tor->session, tor, ioMode, fileIndex, fileOffset, evbuf, bytesThisPass);
+      } else {
+	err = readOrWriteBytes (tor->session, tor, ioMode, fileIndex, fileOffset, buf, bytesThisPass);
+	buf += bytesThisPass;
+      }
+
       buflen -= bytesThisPass;
       fileIndex++;
       fileOffset = 0;
@@ -234,6 +280,30 @@ readOrWritePiece (tr_torrent       * tor,
     }
 
   return err;
+}
+
+/* returns 0 on success, or an errno on failure */
+static int
+readOrWritePiece (tr_torrent       * tor,
+                  int                ioMode,
+                  tr_piece_index_t   pieceIndex,
+                  uint32_t           pieceOffset,
+                  uint8_t          * buf,
+                  size_t             buflen)
+{
+  return _readOrWritePiece(tor, ioMode, pieceIndex, pieceOffset, buf, NULL, buflen);
+}
+
+/* returns 0 on success, or an errno on failure */
+static int
+readvOrWritevPiece (tr_torrent       * tor,
+		    int                ioMode,
+		    tr_piece_index_t   pieceIndex,
+		    uint32_t           pieceOffset,
+		    struct evbuffer  * buf,
+		    size_t             buflen)
+{
+  return _readOrWritePiece(tor, ioMode, pieceIndex, pieceOffset, NULL, buf, buflen);
 }
 
 int
@@ -263,6 +333,16 @@ tr_ioWrite (tr_torrent       * tor,
             const uint8_t    * buf)
 {
   return readOrWritePiece (tor, TR_IO_WRITE, pieceIndex, begin, (uint8_t*)buf, len);
+}
+
+int
+tr_ioWritev (tr_torrent         * tor,
+	     tr_piece_index_t     pieceIndex,
+	     uint32_t             begin,
+	     uint32_t             len,
+	     struct evbuffer    * buf)
+{
+  return readvOrWritevPiece (tor, TR_IO_WRITE, pieceIndex, begin, buf, len);
 }
 
 /****

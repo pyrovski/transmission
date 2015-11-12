@@ -169,30 +169,31 @@ flushContiguous (tr_cache * cache, int pos, int n)
 {
   int i;
   int err = 0;
-  uint8_t * buf = tr_new (uint8_t, n * MAX_BLOCK_SIZE);
-  uint8_t * walk = buf;
+  struct evbuffer * buf = evbuffer_new();
   struct cache_block ** blocks = (struct cache_block**) tr_ptrArrayBase (&cache->blocks);
 
   struct cache_block * b = blocks[pos];
   tr_torrent * tor = b->tor;
   const tr_piece_index_t piece = b->piece;
   const uint32_t offset = b->offset;
+  uint32_t length = 0;
 
   for (i=pos; i<pos+n; ++i)
     {
       b = blocks[i];
-      evbuffer_copyout (b->evbuf, walk, b->length);
-      walk += b->length;
+      length += b->length;
+      int status = evbuffer_remove_buffer(b->evbuf, buf, b->length);
       evbuffer_free (b->evbuf);
       tr_free (b);
     }
+
+  err = tr_ioWritev (tor, piece, offset, length, buf);
+  evbuffer_free(buf);
+
   tr_ptrArrayErase (&cache->blocks, pos, pos+n);
 
-  err = tr_ioWrite (tor, piece, offset, walk-buf, buf);
-  tr_free (buf);
-
   ++cache->disk_writes;
-  cache->disk_write_bytes += walk-buf;
+  cache->disk_write_bytes += length;
   return err;
 }
 

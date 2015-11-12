@@ -46,6 +46,12 @@ int tr_ioWrite (struct tr_torrent  * tor,
                 uint32_t             len,
                 const uint8_t      * writeme);
 
+int tr_ioWritev (tr_torrent         * tor,
+		 tr_piece_index_t     pieceIndex,
+		 uint32_t             begin,
+		 uint32_t             len,
+		 struct evbuffer    * buf);
+
 /**
  * @brief Test to see if the piece matches its metainfo's SHA1 checksum.
  */
