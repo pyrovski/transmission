@@ -8,6 +8,7 @@
 
 #include <string.h> /* memcmp() */
 #include <stdlib.h> /* free() */
+#include <sched.h>
 
 #include "transmission.h"
 #include "completion.h"
@@ -25,14 +26,9 @@
 ****
 ***/
 
-enum
-{
-    MSEC_TO_SLEEP_PER_SECOND_DURING_VERIFY = 100
-};
-
 static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
 {
-    time_t end;
+    uint64_t end;
     tr_sha1_ctx_t sha;
     tr_sys_file_t fd = TR_BAD_SYS_FILE;
     uint64_t filePos = 0;
@@ -43,7 +39,7 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
     tr_file_index_t fileIndex = 0;
     tr_file_index_t prevFileIndex = !fileIndex;
     tr_piece_index_t pieceIndex = 0;
-    time_t const begin = tr_time();
+    uint64_t const begin = tr_time_msec();
     size_t const buflen = 1024 * 128; /* 128 KiB buffer */
     uint8_t* buffer = tr_valloc(buflen);
 
@@ -92,6 +88,7 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
                 tr_sha1_update(sha, buffer, bytesThisPass);
                 tr_sys_file_advise(fd, filePos, bytesThisPass, TR_SYS_FILE_ADVICE_DONT_NEED, NULL);
             }
+            // TODO(peb): fail piece here; we didn't read anything, and the previous behavior was to fail the chunk anyway.
         }
 
         /* move our offsets */
@@ -120,12 +117,13 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
             now = tr_time();
             tor->anyDate = now;
 
-            /* sleeping even just a few msec per second goes a long
+            /*  just a few msec per second goes a long
              * way towards reducing IO load... */
             if (lastSleptAt != now)
             {
                 lastSleptAt = now;
-                tr_wait_msec(MSEC_TO_SLEEP_PER_SECOND_DURING_VERIFY);
+				// TODO(peb): use a cross-platform function
+				sched_yield();
             }
 
             sha = tr_sha1_init();
@@ -157,9 +155,9 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
     free(buffer);
 
     /* stopwatch */
-    end = tr_time();
-    tr_logAddTorDbg(tor, "Verification is done. It took %d seconds to verify %" PRIu64 " bytes (%" PRIu64 " bytes per second)",
-        (int)(end - begin), tor->info.totalSize, (uint64_t)(tor->info.totalSize / (1 + (end - begin))));
+    end = tr_time_msec();
+    tr_logAddTorDbg(tor, "Verification is done. It took %f seconds to verify %" PRIu64 " bytes (%" PRIu64 " bytes per second)",
+					(float)(end - begin)/1000.0f, tor->info.totalSize, (uint64_t)(tor->info.totalSize / ((1 + end - begin)/1000.0f)));
 
     return changed;
 }
@@ -309,6 +307,9 @@ void tr_verifyRemove(tr_torrent* tor)
 
         while (stopCurrent)
         {
+            // TODO(peb): use proper synchronization here.
+		    // Transmission already depends on libevent;
+		    // there's probably something in there we can use.
             tr_lockUnlock(lock);
             tr_wait_msec(100);
             tr_lockLock(lock);
