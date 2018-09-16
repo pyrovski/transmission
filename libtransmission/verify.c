@@ -49,10 +49,10 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
     tr_logAddTorDbg(tor, "%s", "verifying torrent...");
     tr_torrentSetChecked(tor, 0);
 
-    /* TODO: rewrite to use standard torrent IO functions; this has
-       the chance of polluting the file descriptor cache, but we can
-       be careful to remove cache entries when we're done with
-       them. */
+    /* TODO: rewrite to use standard torrent IO functions and run in
+       the event thread; this has the chance of polluting the file
+       descriptor cache, but we can be careful to remove cache entries
+       when we're done with them. */
     while (!*stopFlag && pieceIndex < tor->info.pieceCount)
     {
         uint64_t leftInPiece;
