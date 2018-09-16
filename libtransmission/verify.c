@@ -42,12 +42,17 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
     uint64_t const begin = tr_time_msec();
     size_t const buflen = 1024 * 128; /* 128 KiB buffer */
     uint8_t* buffer = tr_valloc(buflen);
+    bool pieceFailed = false;
 
     sha = tr_sha1_init();
 
     tr_logAddTorDbg(tor, "%s", "verifying torrent...");
     tr_torrentSetChecked(tor, 0);
 
+    /* TODO: rewrite to use standard torrent IO functions; this has
+       the chance of polluting the file descriptor cache, but we can
+       be careful to remove cache entries when we're done with
+       them. */
     while (!*stopFlag && pieceIndex < tor->info.pieceCount)
     {
         uint64_t leftInPiece;
@@ -78,24 +83,31 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
         bytesThisPass = MIN(bytesThisPass, buflen);
 
         /* read a bit */
-        if (fd != TR_BAD_SYS_FILE)
+        if (fd != TR_BAD_SYS_FILE && !pieceFailed)
         {
             uint64_t numRead;
-
+	    /* TODO: allow cancelable reads here */
             if (tr_sys_file_read_at(fd, buffer, bytesThisPass, filePos, &numRead, NULL) && numRead > 0)
             {
                 bytesThisPass = numRead;
                 tr_sha1_update(sha, buffer, bytesThisPass);
                 tr_sys_file_advise(fd, filePos, bytesThisPass, TR_SYS_FILE_ADVICE_DONT_NEED, NULL);
-            }
-            // TODO(peb): fail piece here; we didn't read anything, and the previous behavior was to fail the chunk anyway.
+		/* TODO: prefetch the next piece chunk */
+            } else {
+	      // fail piece here; we didn't read anything, and the
+	      // previous behavior was to fail the chunk anyway. This
+	      // change helps with files on network storage, where we
+	      // might wait for a timeout on each read before giving
+	      // up on the piece.
+	      pieceFailed = true;
+	    }
         }
 
         /* move our offsets */
-        leftInPiece -= bytesThisPass;
-        leftInFile -= bytesThisPass;
-        piecePos += bytesThisPass;
-        filePos += bytesThisPass;
+	leftInPiece -= bytesThisPass;
+	leftInFile -= bytesThisPass;
+	piecePos += bytesThisPass;
+	filePos += bytesThisPass;
 
         /* if we're finishing a piece... */
         if (leftInPiece == 0)
@@ -121,13 +133,15 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
              * way towards reducing IO load... */
             if (lastSleptAt != now)
             {
-                lastSleptAt = now;
-				// TODO(peb): use a cross-platform function
-				sched_yield();
+	        lastSleptAt = now;
+		// TODO(peb): use a cross-platform function;
+		// the transmission equivalent of sleep(0) might work
+		sched_yield();
             }
 
             sha = tr_sha1_init();
             pieceIndex++;
+	    pieceFailed = false;
             piecePos = 0;
         }
 
@@ -307,9 +321,9 @@ void tr_verifyRemove(tr_torrent* tor)
 
         while (stopCurrent)
         {
-            // TODO(peb): use proper synchronization here.
-		    // Transmission already depends on libevent;
-		    // there's probably something in there we can use.
+	  /* TODO(peb): use proper synchronization here. Transmission
+	     already depends on libevent; there's probably something
+	     in there we can use. */
             tr_lockUnlock(lock);
             tr_wait_msec(100);
             tr_lockLock(lock);
@@ -318,7 +332,9 @@ void tr_verifyRemove(tr_torrent* tor)
     else
     {
         struct verify_node* node = tr_list_remove(&verifyList, tor, compareVerifyByTorrent);
-
+	/* TODO: this needs a torrent lock, which means we also need
+	   consistent lock ordering between the verify lock and the
+	   session lock */
         tr_torrentSetVerifyState(tor, TR_VERIFY_NONE);
 
         if (node != NULL)
