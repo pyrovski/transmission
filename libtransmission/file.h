@@ -393,6 +393,26 @@ bool tr_sys_file_read(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_
 bool tr_sys_file_read_at(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_t offset, uint64_t* bytes_read,
     struct tr_error** error);
 
+  
+/**
+ * @brief Like `pread()`, except that it obeys \p timeout and the file position is undefined afterward.
+ *        Not thread-safe.
+ *
+ * @param[in]  handle     Valid file descriptor.
+ * @param[out] buffer     Buffer to store read data to.
+ * @param[in]  size       Number of bytes to read.
+ * @param[in]  offset     File offset in bytes to start reading from.
+ * @param[out] bytes_read Number of bytes actually read. Optional, pass `NULL`
+ *                        if you are not interested.
+ * @param[in]  timeout    Timeout for read. Pass `NULL` to disregard the timeout. Ignored on Windows.
+ * @param[out] error      Pointer to error object. Optional, pass `NULL` if you
+ *                        are not interested in error details.
+ *
+ * @return `True` on success, `false` otherwise (with `error` set accordingly).
+ */
+bool tr_sys_file_read_at_timeout(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_t offset, uint64_t* bytes_read, struct timespec *timeout,
+				 struct tr_error** error);
+
 /**
  * @brief Portability wrapper for `write()`.
  *

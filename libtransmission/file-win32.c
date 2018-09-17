@@ -1001,6 +1001,11 @@ bool tr_sys_file_read(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_
     return ret;
 }
 
+bool tr_sys_file_read_at_timeout(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_t offset, uint64_t* bytes_read, struct timeval *timeout,
+				 tr_error** error) {
+  return tr_sys_file_read_at(handle, buffer, size, offset, bytes_read, error);
+}
+
 bool tr_sys_file_read_at(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_t offset, uint64_t* bytes_read,
     tr_error** error)
 {

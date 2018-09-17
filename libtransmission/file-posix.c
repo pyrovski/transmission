@@ -9,6 +9,7 @@
 #undef _GNU_SOURCE
 #define _GNU_SOURCE
 
+#include <aio.h>
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h> /* O_LARGEFILE, posix_fadvise(), [posix_]fallocate() */
@@ -632,6 +633,67 @@ bool tr_sys_file_read(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_
 
     return ret;
 }
+
+bool tr_sys_file_read_at_timeout(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_t offset, uint64_t* bytes_read, struct timespec *timeout,
+				 struct tr_error** error)
+{
+    TR_ASSERT(handle != TR_BAD_SYS_FILE);
+    TR_ASSERT(buffer != NULL || size == 0);
+
+    bool ret = false;
+    ssize_t my_bytes_read = -1;
+
+    TR_STATIC_ASSERT(sizeof(*bytes_read) >= sizeof(my_bytes_read), "");
+    TR_STATIC_ASSERT(sizeof(offset) <= sizeof(off_t), "");
+
+    struct aiocb cb;
+    memset(&cb, 0, sizeof(struct aiocb));
+    cb.aio_nbytes = size;
+    cb.aio_fildes = handle;
+    cb.aio_offset = offset;
+    cb.aio_buf = buffer;
+
+    int err = aio_read(&cb);
+    if (err == -1) {
+      if (errno == ENOSYS) {
+	tr_logAddError("AIO not supported");
+      }
+      goto cleanup;
+    }
+
+    const struct aiocb * const cbp = &cb;
+    err = aio_suspend(&cbp, 1, timeout);
+    if (err == -1) {
+      goto cleanup;
+    }
+    err = aio_error(&cb);
+    if (err == 0) {
+      ssize_t aio_result = aio_return(&cb);
+      if (aio_result == -1) {
+	goto cleanup;
+      }
+    } else {
+      goto cleanup;
+    }
+    
+ cleanup:
+    if (my_bytes_read != -1)
+    {
+        if (bytes_read != NULL)
+        {
+            *bytes_read = my_bytes_read;
+        }
+
+        ret = true;
+    }
+    else
+    {
+        set_system_error(error, errno);
+    }
+
+    return ret;
+}
+
 
 bool tr_sys_file_read_at(tr_sys_file_t handle, void* buffer, uint64_t size, uint64_t offset, uint64_t* bytes_read,
     tr_error** error)

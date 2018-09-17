@@ -262,6 +262,7 @@ target_link_libraries(${TR_NAME}
     ${LIBINTL_LIBRARY}
     ${LIBM_LIBRARY}
     ${TR_NETWORK_LIBRARIES}
+    ${LIBRT_LIBRARY}
 )
 
 if(ICONV_FOUND)

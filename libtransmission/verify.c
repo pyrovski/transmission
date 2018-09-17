@@ -9,6 +9,7 @@
 #include <string.h> /* memcmp() */
 #include <stdlib.h> /* free() */
 #include <sched.h>
+#include <time.h>   /* struct timespec */
 
 #include "transmission.h"
 #include "completion.h"

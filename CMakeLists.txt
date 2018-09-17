@@ -432,6 +432,7 @@ endif()
 include(LargeFileSupport)
 
 set(NEEDED_HEADERS
+    aio.h
     sys/statvfs.h
     xfs/xfs.h
     xlocale.h)
@@ -449,7 +450,8 @@ foreach(H ${NEEDED_HEADERS})
 endforeach()
 
 set(NEEDED_FUNCTIONS
-    _configthreadlocale
+  _configthreadlocale
+    aio_read
     canonicalize_file_name
     daemon
     fallocate64
@@ -499,6 +501,11 @@ if(ENABLE_NLS)
     if(HAVE_LIBINTL)
         set(LIBINTL_LIBRARY intl)
     endif()
+endif()
+
+check_library_exists(rt aio_read "" HAVE_LIBRT)
+if(HAVE_LIBRT)
+  set(LIBRT_LIBRARY rt)
 endif()
 
 check_library_exists(m sqrt "" HAVE_LIBM)
