@@ -82,6 +82,7 @@ void tr_torrentCheckSeedLimit(tr_torrent* tor);
 /** save a torrent's .resume file if it's changed since the last time it was saved */
 void tr_torrentSave(tr_torrent* tor);
 
+/** Set an error string on \p tor and set the torrent to 'stopping' */
 void tr_torrentSetLocalError(tr_torrent* tor, char const* fmt, ...) TR_GNUC_PRINTF(2, 3);
 
 typedef enum

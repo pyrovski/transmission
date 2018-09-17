@@ -664,15 +664,29 @@ bool tr_sys_file_read_at_timeout(tr_sys_file_t handle, void* buffer, uint64_t si
     const struct aiocb * const cbp = &cb;
     err = aio_suspend(&cbp, 1, timeout);
     if (err == -1) {
+      if (errno == EAGAIN) {
+	if (timeout != NULL) {
+	  tr_logAddError("aio_suspend: read timed out; timeout: %ld.%09ld", timeout->tv_sec, timeout->tv_nsec);
+	} else {
+	  tr_logAddError("aio_suspend: read timed out; no timeout?");
+	}
+      } else if(errno == EINTR) {
+	tr_logAddError("aio_suspend: read interrupted");
+      } else {
+	tr_logAddError("aio_suspend: %d", errno);
+      }
       goto cleanup;
     }
     err = aio_error(&cb);
     if (err == 0) {
       ssize_t aio_result = aio_return(&cb);
       if (aio_result == -1) {
+	tr_logAddError("aio_return: %d", errno);
 	goto cleanup;
       }
+      my_bytes_read = aio_result;
     } else {
+      tr_logAddError("aio_error: %d, errno: %d", err, errno);
       goto cleanup;
     }
     

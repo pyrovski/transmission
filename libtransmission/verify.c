@@ -14,6 +14,7 @@
 #include "transmission.h"
 #include "completion.h"
 #include "crypto-utils.h"
+#include "error.h"
 #include "file.h"
 #include "list.h"
 #include "log.h"
@@ -44,6 +45,11 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
     size_t const buflen = 1024 * 128; /* 128 KiB buffer */
     uint8_t* buffer = tr_valloc(buflen);
     bool pieceFailed = false;
+    struct timespec timeout;
+    /* TODO: extract const from function */
+    timeout.tv_sec = 10;
+    timeout.tv_nsec = 0;
+    bool abort = false;
 
     sha = tr_sha1_init();
 
@@ -87,19 +93,33 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
         if (fd != TR_BAD_SYS_FILE && !pieceFailed)
         {
             uint64_t numRead;
+	    struct tr_error *error = NULL;
 	    /* TODO: allow cancelable reads here */
-            if (tr_sys_file_read_at(fd, buffer, bytesThisPass, filePos, &numRead, NULL) && numRead > 0)
+	    if (tr_sys_file_read_at_timeout(fd, buffer, bytesThisPass, filePos, &numRead, &timeout, &error) && numRead > 0)
             {
                 bytesThisPass = numRead;
                 tr_sha1_update(sha, buffer, bytesThisPass);
                 tr_sys_file_advise(fd, filePos, bytesThisPass, TR_SYS_FILE_ADVICE_DONT_NEED, NULL);
 		/* TODO: prefetch the next piece chunk */
             } else {
+	      if (error != NULL && error->code == EAGAIN) {
+		// Read timeout from aio_suspend() or out of resources from aio_read()
+		abort = true;
+	      }
+	      tr_error_free(error);
+	      if (abort) {
+		char* filename = tr_torrentFindFile(tor, fileIndex);
+		tr_torrentLock(tor);
+		tr_torrentSetLocalError(tor,
+					"unrecoverable verification error in piece %" PRIu32 ", file \"%s\"",
+					pieceIndex, filename != NULL ? filename : "?");
+		tor->startAfterVerify = false;
+		tr_torrentUnlock(tor);
+		tr_free(filename);
+		goto cleanup;
+	      }
 	      // fail piece here; we didn't read anything, and the
-	      // previous behavior was to fail the chunk anyway. This
-	      // change helps with files on network storage, where we
-	      // might wait for a timeout on each read before giving
-	      // up on the piece.
+	      // previous behavior was to fail the chunk anyway.
 	      pieceFailed = true;
 	    }
         }
@@ -161,6 +181,7 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
     }
 
     /* cleanup */
+ cleanup:
     if (fd != TR_BAD_SYS_FILE)
     {
         tr_sys_file_close(fd, NULL);
@@ -171,8 +192,12 @@ static bool verifyTorrent(tr_torrent* tor, bool* stopFlag)
 
     /* stopwatch */
     end = tr_time_msec();
-    tr_logAddTorDbg(tor, "Verification is done. It took %f seconds to verify %" PRIu64 " bytes (%" PRIu64 " bytes per second)",
-					(float)(end - begin)/1000.0f, tor->info.totalSize, (uint64_t)(tor->info.totalSize / ((1 + end - begin)/1000.0f)));
+    if (!abort) {
+      tr_logAddTorDbg(tor, "Verification is done. It took %f seconds to verify %" PRIu64 " bytes (%" PRIu64 " bytes per second)",
+		      (float)(end - begin)/1000.0f, tor->info.totalSize, (uint64_t)(tor->info.totalSize / ((1 + end - begin)/1000.0f)));
+    } else {
+      tr_logAddTorErr(tor, "Verification aborted after %f seconds", (float)(end - begin)/1000.0f);
+    }
 
     return changed;
 }
