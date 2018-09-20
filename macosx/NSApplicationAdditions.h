@@ -1,6 +1,4 @@
 /******************************************************************************
- * $Id$
- *
  * Copyright (c) 2009-2012 Transmission authors and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -22,16 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  *****************************************************************************/
 
-#define NSPopoverLion NSClassFromString(@"NSPopover")
-#define NSDataDetectorLion NSClassFromString(@"NSDataDetector")
-#define NSByteCountFormatterMtLion NSClassFromString(@"NSByteCountFormatter")
-#define NSUserNotificationMtLion NSClassFromString(@"NSUserNotification")
-#define NSUserNotificationCenterMtLion NSClassFromString(@"NSUserNotificationCenter")
+#import <AppKit/AppKit.h>
 
 @interface NSApplication (NSApplicationAdditions)
 
-- (BOOL) isOnLionOrBetter;
-- (BOOL) isOnMountainLionOrBetter;
 - (BOOL) isOnYosemiteOrBetter;
 
 @end

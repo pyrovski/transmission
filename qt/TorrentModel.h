@@ -4,14 +4,11 @@
  * It may be used under the GNU GPL versions 2 or 3
  * or any future license endorsed by Mnemosyne LLC.
  *
- * $Id$
  */
 
-#ifndef QTR_TORRENT_MODEL_H
-#define QTR_TORRENT_MODEL_H
+#pragma once
 
 #include <QAbstractListModel>
-#include <QMap>
 #include <QSet>
 #include <QVector>
 
@@ -21,62 +18,56 @@ class Torrent;
 
 extern "C"
 {
-  struct tr_variant;
+struct tr_variant;
 }
 
-class TorrentModel: public QAbstractListModel
+class TorrentModel : public QAbstractListModel
 {
     Q_OBJECT
 
-  public:
+public:
     enum Role
     {
-      TorrentRole = Qt::UserRole
+        TorrentRole = Qt::UserRole
     };
 
-  public:
-    TorrentModel (const Prefs& prefs);
-    virtual ~TorrentModel ();
+public:
+    TorrentModel(Prefs const& prefs);
+    virtual ~TorrentModel();
 
-    void clear ();
-    bool hasTorrent (const QString& hashString) const;
+    void clear();
+    bool hasTorrent(QString const& hashString) const;
 
-    Torrent * getTorrentFromId (int id);
-    const Torrent * getTorrentFromId (int id) const;
+    Torrent* getTorrentFromId(int id);
+    Torrent const* getTorrentFromId(int id) const;
 
-    void getTransferSpeed (Speed& uploadSpeed, size_t& uploadPeerCount,
-                           Speed& downloadSpeed, size_t& downloadPeerCount);
+    void getTransferSpeed(Speed& uploadSpeed, size_t& uploadPeerCount, Speed& downloadSpeed, size_t& downloadPeerCount);
 
     // QAbstractItemModel
-    virtual int rowCount (const QModelIndex& parent = QModelIndex ()) const;
-    virtual QVariant data (const QModelIndex& index, int role = Qt::DisplayRole) const;
+    virtual int rowCount(QModelIndex const& parent = QModelIndex()) const;
+    virtual QVariant data(QModelIndex const& index, int role = Qt::DisplayRole) const;
 
-  public slots:
-    void updateTorrents (tr_variant * torrentList, bool isCompleteList);
-    void removeTorrents (tr_variant * torrentList);
-    void removeTorrent (int id);
+public slots:
+    void updateTorrents(tr_variant* torrentList, bool isCompleteList);
+    void removeTorrents(tr_variant* torrentList);
+    void removeTorrent(int id);
 
-  signals:
-    void torrentsAdded (QSet<int>);
+signals:
+    void torrentsAdded(QSet<int>);
 
-  private:
-    typedef QMap<int, int> id_to_row_t;
-    typedef QMap<int, Torrent*> id_to_torrent_t;
+private:
     typedef QVector<Torrent*> torrents_t;
 
-  private:
-    void addTorrent (Torrent *);
-    QSet<int> getIds () const;
+private:
+    void addTorrent(Torrent*);
+    void addTorrents(torrents_t&& torrents, QSet<int>& addIds);
+    QSet<int> getIds() const;
 
-  private slots:
-    void onTorrentChanged (int propertyId);
+private slots:
+    void onTorrentChanged(int propertyId);
 
-  private:
-    const Prefs& myPrefs;
+private:
+    Prefs const& myPrefs;
 
-    id_to_row_t myIdToRow;
-    id_to_torrent_t myIdToTorrent;
     torrents_t myTorrents;
 };
-
-#endif // QTR_TORRENT_MODEL_H

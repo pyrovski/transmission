@@ -35,6 +35,13 @@ add_custom_command(
         --c-name transmission
         transmission.gresource.xml
     DEPENDS
+        icons/hicolor_apps_24x24_transmission.png
+        icons/hicolor_apps_48x48_transmission.png
+        icons/lock.png
+        icons/ratio.png
+        icons/turtle-blue.png
+        icons/turtle-grey.png
+        icons/utilities.png
         transmission.gresource.xml
         transmission-ui.xml
     WORKING_DIRECTORY
@@ -43,11 +50,20 @@ add_custom_command(
 
 if(ENABLE_NLS)
     find_program(INTLTOOL_MERGE_EXECUTABLE intltool-merge REQUIRED)
+
     set(${PROJECT_NAME}_DESKTOP_FILE "${PROJECT_BINARY_DIR}/${TR_NAME}-gtk.desktop")
     add_custom_command(
         OUTPUT ${${PROJECT_NAME}_DESKTOP_FILE}
         COMMAND ${INTLTOOL_MERGE_EXECUTABLE} --desktop-style --utf8 ${CMAKE_SOURCE_DIR}/po ${PROJECT_SOURCE_DIR}/transmission-gtk.desktop.in ${${PROJECT_NAME}_DESKTOP_FILE}
         DEPENDS ${PROJECT_SOURCE_DIR}/transmission-gtk.desktop.in
+        VERBATIM
+    )
+
+    set(${PROJECT_NAME}_APPDATA_FILE "${PROJECT_BINARY_DIR}/${TR_NAME}-gtk.appdata.xml")
+    add_custom_command(
+        OUTPUT ${${PROJECT_NAME}_APPDATA_FILE}
+        COMMAND ${INTLTOOL_MERGE_EXECUTABLE} --xml-style --utf8 ${CMAKE_SOURCE_DIR}/po ${PROJECT_SOURCE_DIR}/transmission-gtk.appdata.xml.in ${${PROJECT_NAME}_APPDATA_FILE}
+        DEPENDS ${PROJECT_SOURCE_DIR}/transmission-gtk.appdata.xml.in
         VERBATIM
     )
 endif()
@@ -87,13 +103,7 @@ set(${PROJECT_NAME}_HEADERS
     file-list.h
     filter.h
     hig.h
-    icon-lock.h
-    icon-logo-24.h
-    icon-logo-48.h
-    icon-ratio.h
     icons.h
-    icon-turtle.h
-    icon-utilities.h
     makemeta-ui.h
     msgwin.h
     notify.h
@@ -112,8 +122,10 @@ set(${PROJECT_NAME}_HEADERS
 include_directories(
     ${CMAKE_SOURCE_DIR}
     ${PROJECT_BINARY_DIR}
+    ${LIBAPPINDICATOR_INCLUDE_DIRS}
     ${GTK_INCLUDE_DIRS}
     ${CURL_INCLUDE_DIRS}
+    ${EVENT2_INCLUDE_DIRS}
 )
 
 link_directories(
@@ -145,11 +157,13 @@ add_executable(${TR_NAME}-gtk WIN32
     ${${PROJECT_NAME}_SOURCES}
     ${${PROJECT_NAME}_HEADERS}
     ${${PROJECT_NAME}_DESKTOP_FILE}
+    ${${PROJECT_NAME}_APPDATA_FILE}
     ${${PROJECT_NAME}_WIN32_RC_FILE}
 )
 
 target_link_libraries(${TR_NAME}-gtk
     ${TR_NAME}
+    ${LIBAPPINDICATOR_LIBRARIES}
     ${GTK_LIBRARIES}
     ${CURL_LIBRARIES}
     ${EVENT2_LIBRARIES}
@@ -169,6 +183,7 @@ set(${PROJECT_NAME}_PUBLIC_ICONS
     hicolor_apps_48x48_transmission.png
     hicolor_apps_256x256_transmission.png
     hicolor_apps_scalable_transmission.svg
+    hicolor_apps_symbolic_transmission-symbolic.svg
 )
 
 set(ICON_NAME_REGEX "^([^_]+)_([^_]+)_([^_]+)_(.+)$")
@@ -184,6 +199,7 @@ endif()
 
 if(ENABLE_NLS)
     install(FILES ${${PROJECT_NAME}_DESKTOP_FILE} DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
+    install(FILES ${${PROJECT_NAME}_APPDATA_FILE} DESTINATION ${CMAKE_INSTALL_DATADIR}/appdata)
 else()
     install(FILES transmission-gtk.desktop.in DESTINATION ${CMAKE_INSTALL_DATADIR}/applications RENAME ${TR_NAME}-gtk.desktop)
 endif()

@@ -34,12 +34,6 @@ noinst_HEADERS = \
     filter.h \
     hig.h \
     icons.h \
-    icon-lock.h \
-    icon-logo-24.h \
-    icon-logo-48.h \
-    icon-ratio.h \
-    icon-turtle.h \
-    icon-utilities.h \
     makemeta-ui.h \
     msgwin.h \
     notify.h \
@@ -106,6 +100,13 @@ DESKTOP_FILES=$(DESKTOP_IN_FILES:.desktop.in=.desktop)
 Productivitydir = $(datadir)/applications
 Productivity_DATA = $(DESKTOP_FILES)
 
+APPDATA_IN_FILES=transmission-gtk.appdata.xml.in
+APPDATA_FILES=$(APPDATA_IN_FILES:.xml.in=.xml)
+@INTLTOOL_XML_RULE@
+
+appdatadir = $(datadir)/appdata
+appdata_DATA = $(APPDATA_FILES)
+
 icon_DATA = transmission.png
 icondir = $(datadir)/pixmaps
 
@@ -128,12 +129,14 @@ BUILT_SOURCES += \
 
 EXTRA_DIST = \
 	$(DESKTOP_IN_FILES) \
+	$(APPDATA_IN_FILES) \
 	$(UI_FILES) \
 	transmission.gresource.xml \
 	transmission.png
 
 DISTCLEANFILES = \
-	transmission-gtk.desktop
+	$(DESKTOP_FILES) \
+	$(APPDATA_FILES)
 
 if WIN32
 

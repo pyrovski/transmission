@@ -1,6 +1,4 @@
 /******************************************************************************
- * $Id$
- * 
  * Copyright (c) 2008-2012 Transmission authors and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -41,11 +39,6 @@
     return self;
 }
 
-- (void) dealloc
-{
-    [fTorrents release];
-    [super dealloc];
-}
 
 - (NSString *) description
 {
@@ -75,7 +68,7 @@
         uploaded += [torrent uploadedTotal];
         downloaded += [torrent downloadedTotal];
     }
-    
+
     return tr_getRatio(uploaded, downloaded);
 }
 
@@ -84,7 +77,7 @@
     CGFloat rate = 0.0;
     for (Torrent * torrent in fTorrents)
         rate += [torrent uploadRate];
-    
+
     return rate;
 }
 
@@ -93,7 +86,7 @@
     CGFloat rate = 0.0;
     for (Torrent * torrent in fTorrents)
         rate += [torrent downloadRate];
-    
+
     return rate;
 }
 

@@ -3,10 +3,10 @@ dnl STATUS: "X" for prerelease beta builds,
 dnl         "Z" for unsupported trunk builds,
 dnl         "0" for stable, supported releases
 dnl these should be the only two lines you need to change
-m4_define([user_agent_prefix],[2.84+])
-m4_define([peer_id_prefix],[-TR284Z-])
+m4_define([user_agent_prefix],[2.94+])
+m4_define([peer_id_prefix],[-TR294Z-])
 
-AC_INIT([transmission],[user_agent_prefix],[http://trac.transmissionbt.com/newticket])
+AC_INIT([transmission],[user_agent_prefix],[https://github.com/transmission/transmission])
 AC_SUBST(USERAGENT_PREFIX,[user_agent_prefix])
 AC_SUBST(PEERID_PREFIX,[peer_id_prefix])
 
@@ -16,7 +16,7 @@ AC_CONFIG_MACRO_DIR([m4])
 
 dnl AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(libtransmission/transmission.h)
-AM_INIT_AUTOMAKE([1.9 tar-pax no-dist-gzip dist-xz])
+AM_INIT_AUTOMAKE([1.9 tar-pax no-dist-gzip dist-xz foreign])
 LT_INIT
 LT_LIB_M
 
@@ -103,11 +103,14 @@ if test "x$GCC" = "xyes" ; then
     fi
 fi
 
+AC_PROG_LN_S
+AC_PROG_MKDIR_P
+
 AC_HEADER_STDC
 AC_HEADER_TIME
 
-AC_CHECK_HEADERS([stdbool.h xlocale.h])
-AC_CHECK_FUNCS([iconv_open pread pwrite lrintf strlcpy daemon dirname basename canonicalize_file_name strcasecmp localtime_r fallocate64 posix_fallocate memmem strsep strtold syslog valloc getpagesize posix_memalign statvfs htonll ntohll mkdtemp uselocale _configthreadlocale])
+AC_CHECK_HEADERS([xlocale.h])
+AC_CHECK_FUNCS([iconv pread pwrite lrintf strlcpy daemon dirname basename canonicalize_file_name strcasecmp localtime_r fallocate64 posix_fallocate memmem strsep strtold syslog valloc getpagesize posix_memalign statvfs htonll ntohll mkdtemp uselocale _configthreadlocale])
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 ACX_PTHREAD
@@ -139,7 +142,7 @@ AS_IF([test "x$want_crypto" = "xauto" -o "x$want_crypto" = "xopenssl"], [
 ])
 AS_IF([test "x$want_crypto" = "xauto" -o "x$want_crypto" = "xcyassl"], [
     PKG_CHECK_MODULES(WOLFSSL, [wolfssl >= $CYASSL_MINIMUM],
-        [want_crypto="cyassl"; CRYPTO_PKG="cyassl"; CRYPTO_CFLAGS="$WOLFSSL_CFLAGS"; CRYPTO_LIBS="$WOLFSSL_LIBS"],
+        [want_crypto="cyassl"; CRYPTO_PKG="cyassl"; CRYPTO_CFLAGS="$WOLFSSL_CFLAGS"; CRYPTO_LIBS="$WOLFSSL_LIBS"; CYASSL_IS_WOLFSSL=yes],
         [PKG_CHECK_MODULES(CYASSL, [cyassl >= $CYASSL_MINIMUM],
             [want_crypto="cyassl"; CRYPTO_PKG="cyassl"; CRYPTO_CFLAGS="$CYASSL_CFLAGS"; CRYPTO_LIBS="$CYASSL_LIBS"],
             [AS_IF([test "x$want_crypto" = "xcyassl"],
@@ -149,23 +152,26 @@ AS_IF([test "x$want_crypto" = "xauto" -o "x$want_crypto" = "xcyassl"], [
     )
 ])
 AS_IF([test "x$want_crypto" = "xauto" -o "x$want_crypto" = "xpolarssl"], [
-    AC_CHECK_HEADER([polarssl/version.h],
-        [AC_EGREP_CPP([version_ok], [#include <polarssl/version.h>
-                                     #if defined (POLARSSL_VERSION_NUMBER) && POLARSSL_VERSION_NUMBER >= $POLARSSL_MINIMUM
-                                     version_ok
-                                     #endif],
-            [AC_CHECK_LIB([polarssl], [dhm_calc_secret],
-                [want_crypto="polarssl"; CRYPTO_PKG="polarssl"; CRYPTO_CFLAGS=""; CRYPTO_LIBS="-lpolarssl"],
+    PKG_CHECK_MODULES(MBEDTLS, [mbedtls >= $POLARSSL_MINIMUM],
+        [want_crypto="polarssl"; CRYPTO_PKG="polarssl"; CRYPTO_CFLAGS="$MBEDTLS_CFLAGS"; CRYPTO_LIBS="$MBEDTLS_LIBS"; POLARSSL_IS_MBEDTLS=yes],
+        [AC_CHECK_HEADER([polarssl/version.h],
+            [AC_EGREP_CPP([version_ok], [#include <polarssl/version.h>
+                                         #if defined (POLARSSL_VERSION_NUMBER) && POLARSSL_VERSION_NUMBER >= $POLARSSL_MINIMUM
+                                         version_ok
+                                         #endif],
+                [AC_CHECK_LIB([polarssl], [dhm_calc_secret],
+                    [want_crypto="polarssl"; CRYPTO_PKG="polarssl"; CRYPTO_CFLAGS=""; CRYPTO_LIBS="-lpolarssl"],
+                    [AS_IF([test "x$want_crypto" = "xpolarssl"],
+                        [AC_MSG_ERROR([PolarSSL support requested, but library not found.])]
+                    )]
+                )],
                 [AS_IF([test "x$want_crypto" = "xpolarssl"],
-                    [AC_MSG_ERROR([PolarSSL support requested, but library not found.])]
+                    [AC_MSG_ERROR([PolarSSL support requested, but version not suitable.])]
                 )]
             )],
             [AS_IF([test "x$want_crypto" = "xpolarssl"],
-                [AC_MSG_ERROR([PolarSSL support requested, but version not suitable.])]
+                [AC_MSG_ERROR([PolarSSL support requested, but headers not found.])]
             )]
-        )],
-        [AS_IF([test "x$want_crypto" = "xpolarssl"],
-            [AC_MSG_ERROR([PolarSSL support requested, but headers not found.])]
         )]
     )
 ])
@@ -179,7 +185,9 @@ AS_IF([test "x$CRYPTO_PKG" = "x"], [
 
 AM_CONDITIONAL([CRYPTO_USE_OPENSSL],[test "x$CRYPTO_PKG" = "xopenssl"])
 AM_CONDITIONAL([CRYPTO_USE_CYASSL],[test "x$CRYPTO_PKG" = "xcyassl"])
+AM_CONDITIONAL([CYASSL_IS_WOLFSSL],[test "x$CYASSL_IS_WOLFSSL" = "xyes"])
 AM_CONDITIONAL([CRYPTO_USE_POLARSSL],[test "x$CRYPTO_PKG" = "xpolarssl"])
+AM_CONDITIONAL([POLARSSL_IS_MBEDTLS],[test "x$POLARSSL_IS_MBEDTLS" = "xyes"])
 AC_SUBST(CRYPTO_PKG)
 AC_SUBST(CRYPTO_CFLAGS)
 AC_SUBST(CRYPTO_LIBS)
@@ -204,35 +212,32 @@ dnl ----------------------------------------------------------------------------
 dnl
 dnl file monitoring for the daemon
 
-AC_CHECK_HEADER([sys/inotify.h],
-                [AC_CHECK_FUNC([inotify_init],[have_inotify="yes"],[have_inotify="no"])],
-                [have_inotify="no"])
 AC_ARG_WITH([inotify],
-            [AS_HELP_STRING([--with-inotify],[Enable inotify support (default=auto)])],
-            [want_inotify=${withval}],
-            [want_inotify=${have_inotify}])
-if test "x$want_inotify" = "xyes" ; then
-    if test "x$have_inotify" = "xyes"; then
-      AC_DEFINE([WITH_INOTIFY],[1])
-    else
-      AC_MSG_ERROR("inotify not found!")
-    fi
-fi
+            [AS_HELP_STRING([--with-inotify], [Enable inotify support (default=auto)])],
+            [WANT_INOTIFY=${withval}],
+            [WANT_INOTIFY=auto])
+HAVE_INOTIFY=0
+AS_IF([test "x$WANT_INOTIFY" != "xno"],
+      [AC_CHECK_HEADER([sys/inotify.h],
+                       [AC_CHECK_FUNC([inotify_init],
+                                      [HAVE_INOTIFY=1])],
+                       [AS_IF([test "x$WANT_INOTIFY" = "xyes"],
+                              [AC_MSG_ERROR("inotify not found!")])])])
+AM_CONDITIONAL([USE_INOTIFY], [test "x$WANT_INOTIFY" != "xno" -a $HAVE_INOTIFY -eq 1])
 
-AC_CHECK_HEADER([sys/event.h],
-                [AC_CHECK_FUNC([kqueue],[have_kqueue="yes"],[have_kqueue="no"])],
-                [have_kqueue="no"])
 AC_ARG_WITH([kqueue],
             [AS_HELP_STRING([--with-kqueue],[Enable kqueue support (default=auto)])],
-            [want_kqueue=${withval}],
-            [want_kqueue=${have_kqueue}])
-if test "x$want_kqueue" = "xyes" ; then
-    if test "x$have_kqueue" = "xyes"; then
-      AC_DEFINE([WITH_KQUEUE],[1])
-    else
-      AC_MSG_ERROR("kqueue not found!")
-    fi
-fi
+            [WANT_KQUEUE=${withval}],
+            [WANT_KQUEUE=auto])
+HAVE_KQUEUE=0
+AS_IF([test "x$WANT_KQUEUE" != "xno"],
+      [AC_CHECK_HEADER([sys/event.h],
+                       [AC_CHECK_FUNC([kqueue],
+                                      [HAVE_KQUEUE=1])],
+                       [AS_IF([test "x$WANT_KQUEUE" = "xyes"],
+                              [AC_MSG_ERROR("kqueue not found!")])])])
+AM_CONDITIONAL([USE_KQUEUE], [test "x$WANT_KQUEUE" != "xno" -a $HAVE_KQUEUE -eq 1])
+
 
 AC_CHECK_HEADERS([sys/statvfs.h \
                   xfs/xfs.h])
@@ -243,15 +248,15 @@ dnl
 dnl file monitoring for the daemon
 
 # Check whether to enable systemd startup notification.
-# This requires libsystemd-daemon.
-AC_ARG_WITH([systemd-daemon], AS_HELP_STRING([--with-systemd-daemon],
+# This requires libsystemd.
+AC_ARG_WITH([systemd], AS_HELP_STRING([--with-systemd],
             [Add support for systemd startup notification (default is autodetected)]),
-            [USE_SYSTEMD_DAEMON=$withval], [USE_SYSTEMD_DAEMON=auto])
-AS_IF([test "x$USE_SYSTEMD_DAEMON" != "xno"], [
-    PKG_CHECK_MODULES([SYSTEMD_DAEMON], [libsystemd-daemon],
-        [AC_DEFINE(USE_SYSTEMD_DAEMON,1,[Use systemd startup notification])],
-        [AS_IF([test "x$USE_SYSTEMD_DAEMON" = "xyes"],
-            [AC_MSG_ERROR([systemd startup notification support requested, but libsystemd-daemon not found.])]
+            [USE_SYSTEMD=$withval], [USE_SYSTEMD=auto])
+AS_IF([test "x$USE_SYSTEMD" != "xno"], [
+    PKG_CHECK_MODULES([SYSTEMD], [libsystemd],
+        [AC_DEFINE(USE_SYSTEMD,1,[Use systemd startup notification])],
+        [AS_IF([test "x$USE_SYSTEMD" = "xyes"],
+            [AC_MSG_ERROR([systemd startup notification support requested, but libsystemd not found.])]
         )]
     )
 ])
@@ -261,7 +266,7 @@ dnl ----------------------------------------------------------------------------
 dnl
 dnl  dht
 
-DHT_CFLAGS="-I\$(top_srcdir)/third-party/dht"
+DHT_CFLAGS="-I\$(top_builddir)/third-party/dht/include"
 DHT_LIBS="\$(top_builddir)/third-party/dht/libdht.a"
 DHT_LIBS_QT="\$\${TRANSMISSION_TOP}/third-party/dht/libdht.a"
 build_bundled_dht="yes"
@@ -287,7 +292,7 @@ dnl ----------------------------------------------------------------------------
 dnl
 dnl  libb64
 
-LIBB64_CFLAGS="-I\$(top_srcdir)/third-party/libb64"
+LIBB64_CFLAGS="-I\$(top_srcdir)/third-party/libb64/include"
 LIBB64_LIBS="\$(top_builddir)/third-party/libb64/libb64.a"
 LIBB64_LIBS_QT="\$\${TRANSMISSION_TOP}/third-party/libb64/libb64.a"
 build_bundled_b64="yes"
@@ -349,7 +354,7 @@ if test "x$want_utp" = "xyes"; then
         AC_DEFINE([WITH_UTP],[1])
         build_utp="system"
     elif test "x$CXX" != "x"; then
-        LIBUTP_CFLAGS="-I\$(top_srcdir)/third-party/"
+        LIBUTP_CFLAGS="-I\$(top_builddir)/third-party/libutp/include"
         LIBUTP_LIBS="\$(top_builddir)/third-party/libutp/libutp.a"
         LIBUTP_LIBS_QT="\$\${TRANSMISSION_TOP}/third-party/libutp/libutp.a"
         if test "x$libutp_extra_libs" != "x" ; then
@@ -389,14 +394,12 @@ dnl Let's hope it's 1.7 or higher, since it provides
 dnl MINIUPNPC_API_VERSION and we won't have to figure
 dnl it out on our own
 if test "x$upnp_version" = "xunknown" ; then
-  AC_RUN_IFELSE(
+  AC_COMPILE_IFELSE(
     [AC_LANG_PROGRAM(
       [#include <stdlib.h>
        #include <miniupnpc/miniupnpc.h>],
-      [#ifdef MINIUPNPC_API_VERSION
-       return EXIT_SUCCESS;
-       #else
-       return EXIT_FAILURE;
+      [#ifndef MINIUPNPC_API_VERSION
+       #error MINIUPNPC_API_VERSION undefined
        #endif]
     )],
     [upnp_version=">= 1.7"]
@@ -455,9 +458,9 @@ LIBS="$ac_save_LIBS"
 AC_MSG_RESULT([$upnp_version])
 AM_CONDITIONAL([BUILD_MINIUPNP],[test "x$upnp_version" = "xnone"])
 if test "x$upnp_version" = "xnone" ; then
-    LIBUPNP_CFLAGS="-I\$(top_srcdir)/third-party/"
-    LIBUPNP_LIBS="\$(top_builddir)/third-party/miniupnp/libminiupnp.a"
-    LIBUPNP_LIBS_QT="\$\${TRANSMISSION_TOP}/third-party/miniupnp/libminiupnp.a"
+    LIBUPNP_CFLAGS="-I\$(top_builddir)/third-party/miniupnpc/include"
+    LIBUPNP_LIBS="\$(top_builddir)/third-party/miniupnpc/libminiupnp.a"
+    LIBUPNP_LIBS_QT="\$\${TRANSMISSION_TOP}/third-party/miniupnpc/libminiupnp.a"
 else
     AC_DEFINE([SYSTEM_MINIUPNP])
     LIBUPNP_CFLAGS="" 
@@ -607,7 +610,7 @@ fi
 AC_ARG_ENABLE([cli],
               [AS_HELP_STRING([--enable-cli],[build command-line client])],
               [build_cli=${enableval}],
-              [build_cli="yes"])
+              [build_cli="no"])
 AM_CONDITIONAL([BUILD_CLI],[test "x$build_cli" = "xyes"])
 
 AC_ARG_ENABLE([mac],
@@ -657,7 +660,7 @@ AC_CONFIG_FILES([Makefile
                  third-party/libb64/Makefile
                  third-party/libutp/Makefile
                  third-party/libnatpmp/Makefile
-                 third-party/miniupnp/Makefile
+                 third-party/miniupnpc/Makefile
                  macosx/Makefile
                  gtk/Makefile
                  gtk/icons/Makefile

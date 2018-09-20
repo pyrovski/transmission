@@ -1,6 +1,4 @@
 /******************************************************************************
- * $Id$
- *
  * Copyright (c) 2009-2012 Transmission authors and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -30,11 +28,11 @@
 @interface TrackerNode : NSObject
 {
     tr_tracker_stat fStat;
-    
-    Torrent * fTorrent;
+
+    Torrent * __weak fTorrent;
 }
 
-@property (nonatomic, readonly) Torrent * torrent;
+@property (nonatomic, weak, readonly) Torrent * torrent;
 
 - (id) initWithTrackerStat: (tr_tracker_stat *) stat torrent: (Torrent *) torrent;
 

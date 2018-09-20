@@ -1,15 +1,7 @@
 project(trdaemon)
 
-if(WITH_INOTIFY)
-    add_definitions(-DWITH_INOTIFY)
-endif()
-
-if(WITH_KQUEUE)
-    add_definitions(-DWITH_KQUEUE)
-endif()
-
 if(WITH_SYSTEMD)
-    add_definitions(-DUSE_SYSTEMD_DAEMON)
+    add_definitions(-DUSE_SYSTEMD)
 endif()
 
 include_directories(
@@ -20,18 +12,18 @@ include_directories(
 
 set(${PROJECT_NAME}_SOURCES
     daemon.c
-    watch.c
+    daemon-posix.c
+    daemon-win32.c
 )
 
 if(WIN32)
-    list(APPEND ${PROJECT_NAME}_SOURCES daemon-win32.c)
+    set_source_files_properties(daemon-posix.c PROPERTIES HEADER_FILE_ONLY ON)
 else()
-    list(APPEND ${PROJECT_NAME}_SOURCES daemon-posix.c)
+    set_source_files_properties(daemon-win32.c PROPERTIES HEADER_FILE_ONLY ON)
 endif()
 
 set(${PROJECT_NAME}_HEADERS
     daemon.h
-    watch.h
 )
 
 tr_win32_app_info(${PROJECT_NAME}_WIN32_RC_FILE
@@ -44,15 +36,15 @@ add_executable(${TR_NAME}-daemon
     ${${PROJECT_NAME}_HEADERS}
     ${${PROJECT_NAME}_WIN32_RC_FILE})
 
-set_target_properties(${TR_NAME}-daemon PROPERTIES
-    COMPILE_FLAGS "${SYSTEMD_DAEMON_CFLAGS}"
-    LINK_FLAGS "${SYSTEMD_DAEMON_LDFLAGS}"
-)
-
 target_link_libraries(${TR_NAME}-daemon
     ${TR_NAME}
     ${EVENT2_LIBRARIES}
 )
+
+if(WITH_SYSTEMD)
+    target_include_directories(${TR_NAME}-daemon PRIVATE ${SYSTEMD_INCLUDE_DIRS})
+    target_link_libraries(${TR_NAME}-daemon ${SYSTEMD_LIBRARIES})
+endif()
 
 tr_win32_app_info(${PROJECT_NAME}_remote_WIN32_RC_FILE
     "Transmission Utility ('remote')"

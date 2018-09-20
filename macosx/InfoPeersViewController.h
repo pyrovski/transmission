@@ -1,6 +1,4 @@
 /******************************************************************************
- * $Id$
- *
  * Copyright (c) 2010-2012 Transmission authors and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -30,18 +28,18 @@
 @interface InfoPeersViewController : NSViewController <InfoViewController, NSAnimationDelegate>
 {
     NSArray * fTorrents;
-    
+
     BOOL fSet;
-    
+
     NSMutableArray * fPeers, * fWebSeeds;
-    
+
     IBOutlet NSTableView * fPeerTable;
     IBOutlet WebSeedTableView * fWebSeedTable;
-    CGFloat fWebSeedTableHeight, fSpaceBetweenWebSeedAndPeer;
-    
-    NSViewAnimation * fWebSeedTableAnimation;
-    
+
     IBOutlet NSTextField * fConnectedPeersField;
+
+    CGFloat fViewTopMargin;
+    IBOutlet NSLayoutConstraint * fWebSeedTableTopConstraint;
 }
 
 - (void) setInfoForTorrents: (NSArray *) torrents;
@@ -49,6 +47,5 @@
 
 - (void) saveViewSize;
 - (void) clearView;
-- (void) stopWebSeedAnimation;
 
 @end

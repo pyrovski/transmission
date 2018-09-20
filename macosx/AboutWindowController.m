@@ -1,6 +1,4 @@
 /******************************************************************************
- * $Id$
- *
  * Copyright (c) 2007-2012 Transmission authors and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -24,6 +22,8 @@
 
 #import "AboutWindowController.h"
 
+#include "version.h"
+
 @implementation AboutWindowController
 
 AboutWindowController * fAboutBoxInstance = nil;
@@ -36,22 +36,20 @@ AboutWindowController * fAboutBoxInstance = nil;
 
 - (void) awakeFromNib
 {
-    NSDictionary * info = [[NSBundle mainBundle] infoDictionary];
-    [fVersionField setStringValue: [NSString stringWithFormat: @"%@ (%@)",
-        [info objectForKey: @"CFBundleShortVersionString"], [info objectForKey: (NSString *)kCFBundleVersionKey]]];
-    
+    [fVersionField setStringValue: @(LONG_VERSION_STRING)];
+
     [fCopyrightField setStringValue: [[NSBundle mainBundle] localizedStringForKey: @"NSHumanReadableCopyright"
                                         value: nil table: @"InfoPlist"]];
-    
-    [[fTextView textStorage] setAttributedString: [[[NSAttributedString alloc] initWithPath:
-            [[NSBundle mainBundle] pathForResource: @"Credits" ofType: @"rtf"] documentAttributes: nil] autorelease]];
-    
+
+    [[fTextView textStorage] setAttributedString: [[NSAttributedString alloc] initWithPath:
+            [[NSBundle mainBundle] pathForResource: @"Credits" ofType: @"rtf"] documentAttributes: nil]];
+
     //size license button
     const CGFloat oldButtonWidth = NSWidth([fLicenseButton frame]);
-    
+
     [fLicenseButton setTitle: NSLocalizedString(@"License", "About window -> license button")];
     [fLicenseButton sizeToFit];
-    
+
     NSRect buttonFrame = [fLicenseButton frame];
     buttonFrame.size.width += 10.0;
     buttonFrame.origin.x -= NSWidth(buttonFrame) - oldButtonWidth;
@@ -65,7 +63,6 @@ AboutWindowController * fAboutBoxInstance = nil;
 
 - (void) windowWillClose: (id) sender
 {
-	[fAboutBoxInstance autorelease];
     fAboutBoxInstance = nil;
 }
 
@@ -75,8 +72,8 @@ AboutWindowController * fAboutBoxInstance = nil;
                                 usedEncoding: nil error: NULL];
     [fLicenseView setString: licenseText];
     [fLicenseCloseButton setTitle: NSLocalizedString(@"OK", "About window -> license close button")];
-	
-	[NSApp beginSheet: fLicenseSheet modalForWindow: [self window] modalDelegate: nil didEndSelector: nil contextInfo: nil];
+
+    [NSApp beginSheet: fLicenseSheet modalForWindow: [self window] modalDelegate: nil didEndSelector: nil contextInfo: nil];
 }
 
 - (IBAction) hideLicense: (id) sender

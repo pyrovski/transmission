@@ -11,15 +11,16 @@ unix: INSTALLS += man
 man.path = /share/man/man1/
 man.files = transmission-qt.1
 
-CONFIG += qt thread debug link_pkgconfig c++11 warn_on
+CONFIG += qt thread link_pkgconfig c++11 warn_on
 QT += network dbus
+win32:QT += winextras
 PKGCONFIG = fontconfig libcurl openssl libevent
 
 greaterThan(QT_MAJOR_VERSION, 4) {
     QT += widgets
 }
 
-DEFINES += QT_NO_CAST_FROM_ASCII
+DEFINES += QT_NO_CAST_FROM_ASCII ENABLE_DBUS_INTEROP
 win32:DEFINES += QT_DBUS
 
 TRANSMISSION_TOP = ..
@@ -38,7 +39,7 @@ unix: LIBS += -L$${EVENT_TOP}/lib -lz -lrt
 win32:LIBS += -levent-2.0 -lws2_32 -lintl
 win32:LIBS += -lidn -liconv -lwldap32 -liphlpapi
 
-lessThan(QT_MAJOR_VERSION, 5):*-g++*:QMAKE_CXXFLAGS += -std=gnu++11
+lessThan(QT_MAJOR_VERSION, 5) : *-g++* | *-clang* : QMAKE_CXXFLAGS += -std=gnu++11
 
 TRANSLATIONS += translations/transmission_de.ts \
                 translations/transmission_en.ts \
@@ -47,11 +48,18 @@ TRANSLATIONS += translations/transmission_de.ts \
                 translations/transmission_fr.ts \
                 translations/transmission_hu.ts \
                 translations/transmission_id.ts \
+                translations/transmission_it_IT.ts \
+                translations/transmission_ka.ts \
                 translations/transmission_kk.ts \
+                translations/transmission_ko.ts \
                 translations/transmission_lt.ts \
-                translations/transmission_pl_PL.ts \
+                translations/transmission_nl.ts \
+                translations/transmission_pl.ts \
                 translations/transmission_pt_BR.ts \
+                translations/transmission_pt_PT.ts \
                 translations/transmission_ru.ts \
+                translations/transmission_sv.ts \
+                translations/transmission_tr.ts \
                 translations/transmission_uk.ts \
                 translations/transmission_zh_CN.ts
 
@@ -72,7 +80,7 @@ SOURCES += AboutDialog.cc \
            AddData.cc \
            Application.cc \
            ColumnResizer.cc \
-           DBusAdaptor.cc \
+           DBusInteropHelper.cc \
            DetailsDialog.cc \
            FaviconCache.cc \
            FileTreeDelegate.cc \
@@ -82,11 +90,12 @@ SOURCES += AboutDialog.cc \
            FilterBar.cc \
            FilterBarComboBox.cc \
            FilterBarComboBoxDelegate.cc \
-           FilterBarLineEdit.cc \
            Filters.cc \
            Formatter.cc \
            FreeSpaceLabel.cc \
            IconToolButton.cc \
+           InteropHelper.cc \
+           InteropObject.cc \
            LicenseDialog.cc \
            MainWindow.cc \
            MakeDialog.cc \
@@ -96,10 +105,12 @@ SOURCES += AboutDialog.cc \
            PrefsDialog.cc \
            RelocateDialog.cc \
            RpcClient.cc \
+           RpcQueue.cc \
            Session.cc \
            SessionDialog.cc \
            SqueezeLabel.cc \
            StatsDialog.cc \
+           StyleHelper.cc \
            Torrent.cc \
            TorrentDelegate.cc \
            TorrentDelegateMin.cc \

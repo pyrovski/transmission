@@ -12,12 +12,18 @@ public_icons = \
 	hicolor_apps_48x48_transmission.png \
 	hicolor_apps_256x256_transmission.png \
 	hicolor_apps_scalable_transmission.svg \
+	hicolor_apps_symbolic_transmission-symbolic.svg \
 	$(NULL)
 
 private_icons = \
 	$(NULL)
 
 noinst_DATA = \
+	lock.png \
+	ratio.png \
+	turtle-blue.png \
+	turtle-grey.png \
+	utilities.png \
 	hicolor_apps_16x16_transmission.svg \
 	hicolor_apps_22x22_transmission.svg \
 	hicolor_apps_32x32_transmission.svg \

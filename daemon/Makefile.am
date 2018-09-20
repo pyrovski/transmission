@@ -3,7 +3,7 @@ AM_CPPFLAGS = -I@top_srcdir@ -DEMBEDDED
 AM_CFLAGS = \
     @LIBEVENT_CFLAGS@ \
     @LIBCURL_CFLAGS@ \
-    @SYSTEMD_DAEMON_CFLAGS@ \
+    @SYSTEMD_CFLAGS@ \
     @ZLIB_CFLAGS@ \
     @PTHREAD_CFLAGS@
 
@@ -29,16 +29,14 @@ LDADD = \
     @LIBCURL_LIBS@ \
     @CRYPTO_LIBS@ \
     @INTLLIBS@ \
-    @SYSTEMD_DAEMON_LIBS@ \
+    @SYSTEMD_LIBS@ \
     @ZLIB_LIBS@ \
     @PTHREAD_LIBS@ \
     ${LIBM}
 
-noinst_HEADERS = \
-    daemon.h \
-    watch.h
+noinst_HEADERS = daemon.h
 
-transmission_daemon_SOURCES = daemon.c watch.c
+transmission_daemon_SOURCES = daemon.c
 transmission_remote_SOURCES = remote.c
 
 if WIN32

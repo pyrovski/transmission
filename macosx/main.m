@@ -1,6 +1,4 @@
 /******************************************************************************
- * $Id$
- *
  * Copyright (c) 2005-2012 Transmission authors and contributors
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -26,7 +24,7 @@
 
 int main( int argc, char ** argv )
 {
-    if( argc > 1 && !strncmp( argv[1], "-v", 2 ) )
+    if( argc > 1 && strncmp( argv[1], "-v", 2 ) == 0 )
     {
         char * env;
         int    debug = atoi( &argv[1][2] );
