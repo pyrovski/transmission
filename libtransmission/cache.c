@@ -166,8 +166,7 @@ static int flushContiguous(tr_cache* cache, int pos, int n)
 {
   int err = 0;
 
-  struct evbuffer * buf = evbuffer_new();
-  struct cache_block ** blocks = (struct cache_block**) tr_ptrArrayBase (&cache->blocks);
+  struct cache_block ** blocks = (struct cache_block**) tr_ptrArrayBase(&cache->blocks);
 
   struct cache_block * b = blocks[pos];
   tr_torrent * tor = b->tor;
@@ -175,6 +174,7 @@ static int flushContiguous(tr_cache* cache, int pos, int n)
   const uint32_t offset = b->offset;
   uint32_t length = 0;
 
+  struct evbuffer * buf = evbuffer_new();
   for (int i = pos; i < pos + n; ++i)
     {
       b = blocks[i];
@@ -357,7 +357,12 @@ int tr_cacheReadBlock(tr_cache* cache, tr_torrent* torrent, tr_piece_index_t pie
 
     if (cb != NULL)
     {
-        evbuffer_remove_buffer(cb->evbuf, setme, len);
+      uint32_t read_length = MIN(len, evbuffer_get_length(cb->evbuf));
+      struct evbuffer_iovec iovec[1];
+      evbuffer_reserve_space(setme, read_length, iovec, 1);
+      iovec->iov_len = read_length;
+      evbuffer_copyout(cb->evbuf, iovec->iov_base, read_length);
+      evbuffer_commit_space(setme, iovec, 1);
     }
     else
     {
@@ -367,6 +372,7 @@ int tr_cacheReadBlock(tr_cache* cache, tr_torrent* torrent, tr_piece_index_t pie
     return err;
 }
 
+// TODO: test
 int tr_cachePrefetchBlock(tr_cache* cache, tr_torrent* torrent, tr_piece_index_t piece, uint32_t offset, uint32_t len)
 {
     int err = 0;
@@ -418,6 +424,7 @@ int tr_cacheFlushDone(tr_cache* cache)
     return err;
 }
 
+// TODO: test
 int tr_cacheFlushFile(tr_cache* cache, tr_torrent* torrent, tr_file_index_t i)
 {
     int pos;
@@ -450,6 +457,7 @@ int tr_cacheFlushFile(tr_cache* cache, tr_torrent* torrent, tr_file_index_t i)
     return err;
 }
 
+// TODO: test
 int tr_cacheFlushTorrent(tr_cache* cache, tr_torrent* torrent)
 {
     int err = 0;

@@ -251,35 +251,43 @@ static bool recalculateHash(tr_torrent* tor, tr_piece_index_t pieceIndex, uint8_
     uint32_t offset = 0;
     bool success = true;
     size_t const buflen = tor->blockSize;
-    void* buffer = tr_valloc(buflen);
     tr_sha1_ctx_t sha;
 
-    TR_ASSERT(buffer != NULL);
     TR_ASSERT(buflen > 0);
 
     sha = tr_sha1_init();
     bytesLeft = tr_torPieceCountBytes(tor, pieceIndex);
 
     tr_ioPrefetch(tor, pieceIndex, offset, bytesLeft);
+    struct evbuffer *evbuf = evbuffer_new();
 
     while (bytesLeft != 0)
     {
         size_t const len = MIN(bytesLeft, buflen);
-        success = tr_cacheReadBlock(tor->session->cache, tor, pieceIndex, offset, len, buffer) == 0;
+        success = tr_cacheReadBlock(tor->session->cache, tor, pieceIndex, offset, len, evbuf) == 0;
 
         if (!success)
         {
             break;
         }
 
-        tr_sha1_update(sha, buffer, len);
+	int extents = evbuffer_peek(evbuf, buflen, NULL, NULL, 0);
+	struct evbuffer_iovec *v = tr_malloc(sizeof(struct evbuffer_iovec)*extents);
+	evbuffer_peek(evbuf, buflen, NULL, v, extents);
+	for (int i = 0; i < extents; ++i) {
+	  tr_sha1_update(sha, v[i].iov_base, v[i].iov_len);
+	}
+	
+	tr_free(v);
+	evbuffer_drain(evbuf, evbuffer_get_length(evbuf));
         offset += len;
         bytesLeft -= len;
     }
-
+    
+    evbuffer_free(evbuf);
+    
     tr_sha1_final(sha, success ? setme : NULL);
 
-    tr_free(buffer);
     return success;
 }
 
