@@ -462,7 +462,7 @@ bool tr_sys_file_write_at(tr_sys_file_t handle, void const* buffer, uint64_t siz
  *
  * @return `True` on success, `false` otherwise (with `error` set accordingly).
  */
-bool tr_sys_file_write_evbuffer_at(tr_sys_file_t handle,struct evbuffer * evbuf, uint64_t size, uint64_t offset, uint64_t * bytes_written,
+bool tr_sys_file_write_evbuffer_at(tr_sys_file_t handle, struct evbuffer * evbuf, uint64_t size, uint64_t offset, uint64_t * bytes_written,
 				   struct tr_error ** error);
 
   

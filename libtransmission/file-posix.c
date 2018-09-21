@@ -762,7 +762,7 @@ bool tr_sys_file_write_evbuffer_at(tr_sys_file_t handle,struct evbuffer * evbuf,
   }
   ssize_t left = size;
   do {
-    my_bytes_written = evbuffer_write_atmost(evbuf, handle, -1);
+    my_bytes_written = evbuffer_write_atmost(evbuf, handle, left);
     if(my_bytes_written != -1){
       left -= my_bytes_written;
       total_bytes_written += my_bytes_written;
