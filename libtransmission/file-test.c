@@ -1210,7 +1210,6 @@ static int test_file_read_write_seek(void)
     struct evbuffer *evbuf = evbuffer_new();
     evbuffer_add(evbuf, "v", 1);
 
-    // TODO: benchmark evbuffer writes vs raw writes for noncontiguous buffers
     check(tr_sys_file_write_evbuffer_at(fd, evbuf, 1, 4, &n, &err));
     check_ptr(err, ==, NULL);
     check_uint(n, ==, 1);
@@ -1277,12 +1276,12 @@ static int test_file_write_at(void)
     
     bool ok;
 
-    const size_t file_size = 100 * 1024 * 1024;
+    const size_t file_size = 100 * 1024 * 1024; // 100 MiB
     ok = tr_sys_file_truncate(fd, file_size, &err);
     check_bool(ok, ==, true);
     check_ptr(err, ==, NULL);
 
-    const size_t chunk_size = 16 * 1024;
+    const size_t chunk_size = 256 * 1024;
     const int num_chunks = 1024 * 1024 / chunk_size;
     void *buf = tr_malloc(chunk_size);
 
@@ -1290,8 +1289,8 @@ static int test_file_write_at(void)
     for (int i = 0; i < num_chunks; ++i) {
       evbuffer_add(evbuf, buf, chunk_size);
     }
-    tr_free(buf);
-    buf = tr_malloc(chunk_size * num_chunks);
+    const size_t write_size = chunk_size * num_chunks; // 1 MiB
+    buf = tr_malloc(write_size);
 
     uint64_t bytes_written;
 
@@ -1302,22 +1301,42 @@ static int test_file_write_at(void)
     for (unsigned int j = 0; j < num_outer; ++j) {
       for (unsigned int i = 0; i < file_size / 1024 / 1024; ++i) {
 	clock_gettime(CLOCK_MONOTONIC, &start);
-	evbuffer_copyout(evbuf, buf, chunk_size * num_chunks);
-	ok = tr_sys_file_write_at(fd, buf, chunk_size * num_chunks, i * 1024 * 1024, &bytes_written, &err);
+	evbuffer_copyout(evbuf, buf, write_size);
+	uint64_t offset = i * write_size;
+	ok = tr_sys_file_write_at(fd, buf, write_size, offset, &bytes_written, &err);
 	clock_gettime(CLOCK_MONOTONIC, &end);
 	timespec_diff(&start, &end, &diff);
 	float duration = (diff.tv_sec + (float)diff.tv_nsec / 1e9);
 	total_duration += duration;
 	check_bool(ok, ==, true);
 	check_ptr(err, ==, NULL);
+	check_uint(bytes_written, ==, write_size);
       }
     }
 
+    void *buf2 = tr_malloc(write_size);
+    for (unsigned int i = 0; i < file_size / write_size; ++i) {
+      uint64_t bytes_read;
+      uint64_t offset = i * write_size;
+      ok = tr_sys_file_read_at(fd, buf2, write_size, offset, &bytes_read, &err);
+      check_bool(ok, ==, true);
+      check_ptr(err, ==, NULL);
+      check_uint(bytes_read, ==, write_size);
+      if(memcmp(buf, buf2, chunk_size)) {
+	printf("%s:%d: failed file data validation at %"PRIu64"\n", __FUNCTION__, __LINE__, offset);
+	return 1;
+      }
+    }
+    tr_free(buf);
+    tr_free(buf2);
+    
     printf("%s: %fs; %f per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
     
-    tr_free(buf);
     evbuffer_free(evbuf);
     tr_sys_file_close(fd, NULL);
+    tr_sys_path_remove(path1, NULL);
+    tr_free(path1);
+    tr_free(test_dir);
     return 0;
 }
 
@@ -1342,7 +1361,7 @@ static int test_file_write_evbuffer_at(void)
     check_bool(ok, ==, true);
     check_ptr(err, ==, NULL);
 
-    const size_t chunk_size = 16 * 1024;
+    const size_t chunk_size = 256 * 1024;
     const int num_chunks = 1024 * 1024 / chunk_size;
     void *buf = tr_malloc(chunk_size);
     const size_t write_size = chunk_size * num_chunks;
@@ -1355,8 +1374,7 @@ static int test_file_write_evbuffer_at(void)
     
     for (unsigned int j = 0; j < num_outer; ++j) {
       for (unsigned int i = 0; i < file_size / write_size; ++i) {
-	uint64_t bytes_written; // TODO: verify
-	
+	uint64_t bytes_written;
 	for (int i = 0; i < num_chunks; ++i) {
 	  evbuffer_add(evbuf, buf, chunk_size);
 	}
@@ -1368,27 +1386,33 @@ static int test_file_write_evbuffer_at(void)
 	total_duration += duration;
 	check_bool(ok, ==, true);
 	check_ptr(err, ==, NULL);
+	check_uint(bytes_written, ==, write_size);
       }
     }
 
     void *buf2 = tr_malloc(chunk_size);
     for (unsigned int i = 0; i < file_size / chunk_size; ++i) {
-      uint64_t bytes_read; // TODO: verify
-      ok = tr_sys_file_read_at(fd, buf2, chunk_size, i * chunk_size, &bytes_read, &err);
+      uint64_t bytes_read;
+      uint64_t offset = i * chunk_size;
+      ok = tr_sys_file_read_at(fd, buf2, chunk_size, offset, &bytes_read, &err);
       check_bool(ok, ==, true);
       check_ptr(err, ==, NULL);
+      check_uint(bytes_read, ==, chunk_size);
       if(memcmp(buf, buf2, chunk_size)) {
-	printf("%s:%d: failed file data validation at %"PRIu64"\n", __FUNCTION__, __LINE__, i * chunk_size);
+	printf("%s:%d: failed file data validation at %"PRIu64"\n", __FUNCTION__, __LINE__, offset);
 	return 1;
       }
     }
     tr_free(buf);
     tr_free(buf2);
-    
+
     printf("%s: %fs; %g per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
     
     evbuffer_free(evbuf);
     tr_sys_file_close(fd, NULL);
+    tr_sys_path_remove(path1, NULL);
+    tr_free(path1);
+    tr_free(test_dir);
     return 0;
 }
 
