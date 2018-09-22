@@ -1242,36 +1242,6 @@ static int test_file_read_write_seek(void)
     return 0;
 }
 
-// TODO: move to utils.h
-void timespec_diff(struct timespec *start, struct timespec *stop,
-		   struct timespec *result);
-void timespec_diff(struct timespec *start, struct timespec *stop,
-		   struct timespec *result)
-{
-  if ((stop->tv_nsec - start->tv_nsec) < 0) {
-    result->tv_sec = stop->tv_sec - start->tv_sec - 1;
-    result->tv_nsec = stop->tv_nsec - start->tv_nsec + 1000000000;
-  } else {
-    result->tv_sec = stop->tv_sec - start->tv_sec;
-    result->tv_nsec = stop->tv_nsec - start->tv_nsec;
-  }
-
-  return;
-}
-
-clockid_t get_clock(void);
-clockid_t get_clock(void) {
-#ifdef HAVE_CLOCK_MONOTONIC_RAW
-  return CLOCK_MONOTONIC_RAW;
-#else
-#ifdef HAVE_CLOCK_MONOTONIC
-  return CLOCK_MONOTONIC;
-#else
-  return CLOCK_REALTIME;
-#endif
-#endif
-}
-
 static int test_file_write_at(void)
 {
     char* const test_dir = create_test_dir(__FUNCTION__);
