@@ -9,7 +9,6 @@
 #include <errno.h>
 #include <stdlib.h> /* bsearch () */
 #include <string.h> /* memcmp () */
-#include <stdio.h>
 
 #include "transmission.h"
 #include "cache.h" /* tr_cacheReadBlock() */

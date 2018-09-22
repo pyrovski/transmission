@@ -399,7 +399,7 @@ bool tr_sys_file_read_at(tr_sys_file_t handle, void* buffer, uint64_t size, uint
  *        Not thread-safe.
  *
  * @param[in]  handle     Valid file descriptor.
- * @param[out] buffer     Buffer to which to store data read.
+ * @param[out] evbuf      evbuffer to which to store data read.
  * @param[in]  size       Number of bytes to read.
  * @param[in]  offset     File offset in bytes to start reading from.
  * @param[out] bytes_read Number of bytes actually read. Optional, pass `NULL`
@@ -409,7 +409,7 @@ bool tr_sys_file_read_at(tr_sys_file_t handle, void* buffer, uint64_t size, uint
  *
  * @return `True` on success, `false` otherwise (with `error` set accordingly).
  */
-bool tr_sys_file_read_evbuffer_at(tr_sys_file_t handle, struct evbuffer* buffer, uint64_t size, uint64_t offset, uint64_t* bytes_read,
+bool tr_sys_file_read_evbuffer_at(tr_sys_file_t handle, struct evbuffer* evbuf, uint64_t size, uint64_t offset, uint64_t* bytes_read,
     struct tr_error** error);
 
 
