@@ -512,7 +512,7 @@ check_c_source_runs(
     }
     "
       HAVE_CLOCK_MONOTONIC_RAW)
-    
+
 if(ICONV_FOUND)
     add_definitions(-DHAVE_ICONV)
     if(ICONV_SECOND_ARGUMENT_IS_CONST)

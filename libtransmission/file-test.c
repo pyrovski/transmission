@@ -1255,7 +1255,11 @@ static int test_file_write_at(void)
 
     check_int(fd, !=, -1);
     check_ptr(err, ==, NULL);
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> writev_merge
     bool ok;
 
     const size_t file_size = 100 * 1024 * 1024; // 100 MiB
@@ -1281,7 +1285,11 @@ static int test_file_write_at(void)
     float total_duration = 0;
 
     clockid_t clock = get_clock();
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> writev_merge
     for (unsigned int j = 0; j < num_outer; ++j) {
       for (unsigned int i = 0; i < file_size / 1024 / 1024; ++i) {
 	clock_gettime(clock, &start);
@@ -1313,9 +1321,15 @@ static int test_file_write_at(void)
     }
     tr_free(buf);
     tr_free(buf2);
+<<<<<<< HEAD
     
     printf("%s: %fs; %gs per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
     
+=======
+
+    printf("%s: %fs; %gs per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
+
+>>>>>>> writev_merge
     evbuffer_free(evbuf);
     tr_sys_file_close(fd, NULL);
     tr_sys_path_remove(path1, NULL);
@@ -1337,7 +1351,11 @@ static int test_file_write_evbuffer_at(void)
 
     check_int(fd, !=, -1);
     check_ptr(err, ==, NULL);
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> writev_merge
     bool ok;
 
     const size_t file_size = 100 * 1024 * 1024;
@@ -1355,7 +1373,11 @@ static int test_file_write_evbuffer_at(void)
     const unsigned int num_outer = 20;
     struct timespec start, end, diff;
     float total_duration = 0;
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> writev_merge
     clockid_t clock = get_clock();
     for (unsigned int j = 0; j < num_outer; ++j) {
       for (unsigned int i = 0; i < file_size / write_size; ++i) {
@@ -1392,7 +1414,11 @@ static int test_file_write_evbuffer_at(void)
     tr_free(buf2);
 
     printf("%s: %fs; %gs per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
+<<<<<<< HEAD
     
+=======
+
+>>>>>>> writev_merge
     evbuffer_free(evbuf);
     tr_sys_file_close(fd, NULL);
     tr_sys_path_remove(path1, NULL);

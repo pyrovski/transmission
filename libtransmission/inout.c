@@ -282,9 +282,7 @@ static bool recalculateHash(tr_torrent* tor, tr_piece_index_t pieceIndex, uint8_
         offset += len;
         bytesLeft -= len;
     }
-    
     evbuffer_free(evbuf);
-    
     tr_sha1_final(sha, success ? setme : NULL);
 
     return success;

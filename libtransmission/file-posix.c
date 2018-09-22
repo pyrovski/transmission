@@ -776,7 +776,6 @@ cleanup:
         {
 	  *bytes_written = total_bytes_written;
         }
-
       ret = true;
     }
   else
@@ -798,7 +797,7 @@ bool tr_sys_file_write_at(tr_sys_file_t handle, void const* buffer, uint64_t siz
   bool ret = false;
   ssize_t my_bytes_written = 0;
   TR_STATIC_ASSERT(sizeof(*bytes_written) >= sizeof(my_bytes_written), "");
-  
+
 #ifdef HAVE_PWRITE
   my_bytes_written = pwrite(handle, buffer, size, offset);
 #else
