@@ -21,7 +21,6 @@
 #include "transmission.h"
 #include "error.h"
 #include "file.h"
-#include "log.h"
 
 #include "libtransmission-test.h"
 
@@ -1260,6 +1259,19 @@ void timespec_diff(struct timespec *start, struct timespec *stop,
   return;
 }
 
+clockid_t get_clock(void);
+clockid_t get_clock(void) {
+#ifdef HAVE_CLOCK_MONOTONIC_RAW
+  return CLOCK_MONOTONIC_RAW;
+#else
+#ifdef HAVE_CLOCK_MONOTONIC
+  return CLOCK_MONOTONIC;
+#else
+  return CLOCK_REALTIME;
+#endif
+#endif
+}
+
 static int test_file_write_at(void)
 {
     char* const test_dir = create_test_dir(__FUNCTION__);
@@ -1294,17 +1306,19 @@ static int test_file_write_at(void)
 
     uint64_t bytes_written;
 
-    const unsigned int num_outer = 100;
+    const unsigned int num_outer = 20;
     struct timespec start, end, diff;
     float total_duration = 0;
+
+    clockid_t clock = get_clock();
     
     for (unsigned int j = 0; j < num_outer; ++j) {
       for (unsigned int i = 0; i < file_size / 1024 / 1024; ++i) {
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(clock, &start);
 	evbuffer_copyout(evbuf, buf, write_size);
 	uint64_t offset = i * write_size;
 	ok = tr_sys_file_write_at(fd, buf, write_size, offset, &bytes_written, &err);
-	clock_gettime(CLOCK_MONOTONIC, &end);
+	clock_gettime(clock, &end);
 	timespec_diff(&start, &end, &diff);
 	float duration = (diff.tv_sec + (float)diff.tv_nsec / 1e9);
 	total_duration += duration;
@@ -1330,7 +1344,7 @@ static int test_file_write_at(void)
     tr_free(buf);
     tr_free(buf2);
     
-    printf("%s: %fs; %f per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
+    printf("%s: %fs; %gs per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
     
     evbuffer_free(evbuf);
     tr_sys_file_close(fd, NULL);
@@ -1368,19 +1382,20 @@ static int test_file_write_evbuffer_at(void)
 
     struct evbuffer *evbuf = evbuffer_new();
 
-    const unsigned int num_outer = 100;
+    const unsigned int num_outer = 20;
     struct timespec start, end, diff;
     float total_duration = 0;
     
+    clockid_t clock = get_clock();
     for (unsigned int j = 0; j < num_outer; ++j) {
       for (unsigned int i = 0; i < file_size / write_size; ++i) {
 	uint64_t bytes_written;
 	for (int i = 0; i < num_chunks; ++i) {
 	  evbuffer_add(evbuf, buf, chunk_size);
 	}
-	clock_gettime(CLOCK_MONOTONIC, &start);
+	clock_gettime(clock, &start);
 	ok = tr_sys_file_write_evbuffer_at(fd, evbuf, evbuffer_get_length(evbuf), i * write_size, &bytes_written, &err);
-	clock_gettime(CLOCK_MONOTONIC, &end);
+	clock_gettime(clock, &end);
 	timespec_diff(&start, &end, &diff);
 	float duration = (diff.tv_sec + (float)diff.tv_nsec / 1e9);
 	total_duration += duration;
@@ -1406,7 +1421,7 @@ static int test_file_write_evbuffer_at(void)
     tr_free(buf);
     tr_free(buf2);
 
-    printf("%s: %fs; %g per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
+    printf("%s: %fs; %gs per file iteration\n", __FUNCTION__, total_duration, total_duration / (file_size / 1024 / 1024) / num_outer);
     
     evbuffer_free(evbuf);
     tr_sys_file_close(fd, NULL);
