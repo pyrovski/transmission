@@ -392,6 +392,7 @@ static int findBlockPos(tr_cache* cache, tr_torrent* torrent, tr_piece_index_t b
     return tr_ptrArrayLowerBound(&cache->blocks, &key, cache_block_compare, NULL);
 }
 
+// TODO: test
 int tr_cacheFlushDone(tr_cache* cache)
 {
     int err = 0;

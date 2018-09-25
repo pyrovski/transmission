@@ -24,3 +24,12 @@ macosx/en.lproj/*~.nib
 po/*.mo
 /release
 third-party/miniupnp/miniupnpcstrings.h
+*~
+*.o
+*.in
+Makefile
+TAGS
+.deps
+Doxyfile
+latex
+html

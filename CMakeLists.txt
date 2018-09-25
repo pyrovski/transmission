@@ -375,6 +375,9 @@ if(WIN32)
     endforeach()
 endif()
 
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
+#set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -lcov --coverage")
+
 if(CMAKE_VERSION VERSION_LESS "3.1")
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
