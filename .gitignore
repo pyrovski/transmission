@@ -33,3 +33,12 @@ TAGS
 Doxyfile
 latex
 html
+ltmain.sh
+libtool
+config.sub
+/configure
+config.log
+config.guess
+config.status
+po/POTFILES
+aclocal.m4

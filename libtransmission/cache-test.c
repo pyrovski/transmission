@@ -27,6 +27,7 @@ static int test_flush_done(void) {
   check_int(memcmp(buf, buf2, size), ==, 0);
 
   // TODO: test tr_cacheFlushDone()
+  // TODO: test aborts
   
   evbuffer_free(evbuf);
   tr_free(buf);
