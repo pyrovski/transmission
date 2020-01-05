@@ -36,6 +36,7 @@ tr_auto_option(WITH_INOTIFY         "Enable inotify support (on systems that sup
 tr_auto_option(WITH_KQUEUE          "Enable kqueue support (on systems that support it)" AUTO)
 tr_auto_option(WITH_LIBAPPINDICATOR "Use libappindicator in GTK+ client" AUTO)
 tr_auto_option(WITH_SYSTEMD         "Add support for systemd startup notification (on systems that support it)" AUTO)
+        option(ENABLE_COVERAGE      "Compile with code coverage instrumentation" OFF)
 
 set(TR_NAME ${PROJECT_NAME})
 
@@ -373,6 +374,11 @@ if(WIN32)
         # Filter out needless definitions
         set(CMAKE_${L}_FLAGS "${CMAKE_${L}_FLAGS} -DWIN32_LEAN_AND_MEAN -DNOMINMAX")
     endforeach()
+endif()
+
+if(ENABLE_COVERAGE)
+  add_compile_options("--coverage")
+  link_libraries("-lgcov --coverage")
 endif()
 
 if(CMAKE_VERSION VERSION_LESS "3.1")
