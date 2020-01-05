@@ -11,43 +11,72 @@
 
 static tr_session* session;
 
-static int test_flush_done(void) {
-  tr_torrent *tor = libttest_zero_torrent_init(session);
-  libttest_zero_torrent_populate(tor, true);
-  const size_t size = tor->blockSize;
-  uint8_t *buf = tr_malloc(size);
-  buf[0] = 1;
-  uint8_t *buf2 = tr_malloc(size);
+struct s_args {
+  tr_torrent *torrent;
+  uint32_t length;
+  struct evbuffer *evbuf;
+  uint8_t *buf;
+  uint8_t *buf2;
+  int add_result;
+  int write_result;
+  int read_result;
+  int cmp_result;
+  bool done;
+} args;
+
+void func(void* arg) {
+  args.buf = tr_malloc(args.length);
+  args.buf[0] = 1;
+  args.buf2 = tr_malloc(args.length);
   // write a block of garbage into the cache
-  struct evbuffer *evbuf = evbuffer_new();
-  check_int(evbuffer_add(evbuf, buf, size), ==, 0);
-  check_int(tr_cacheWriteBlock(session->cache, tor, 0, 0, size, evbuf), ==, 0);
+  args.evbuf = evbuffer_new();
+  args.add_result = evbuffer_add(args.evbuf, args.buf, args.length);
+  args.write_result = tr_cacheWriteBlock(session->cache, args.torrent, 0, 0, args.length, args.evbuf);
   // read the block from the cache
-  check_int(tr_cacheReadBlock(session->cache, tor, 0, 0, size, buf2), ==, 0);
-  check_int(memcmp(buf, buf2, size), ==, 0);
+  args.read_result = tr_cacheReadBlock(session->cache, args.torrent, 0, 0, args.length, args.buf2);
+  args.cmp_result = memcmp(args.buf, args.buf2, args.length);
+  args.done = true;
+}
+
+static int test_flush_done(void) {
+  args.torrent = libttest_zero_torrent_init(session);
+  libttest_zero_torrent_populate(args.torrent, true);
+  args.length = args.torrent->blockSize;
+  args.done = false;
+
+  tr_runInEventThread(session, func, 0);
+
+  do
+    {
+      tr_wait_msec(50);
+    }
+  while (!args.done);
+  check_int(args.add_result, ==, 0);
+  check_int(args.write_result, ==, 0);
+  check_int(args.read_result, ==, 0);
+  check_int(args.cmp_result, ==, 0);
 
   // TODO: test tr_cacheFlushDone()
-  // TODO: test aborts
   
-  evbuffer_free(evbuf);
-  tr_free(buf);
-  tr_free(buf2);
+  evbuffer_free(args.evbuf);
+  tr_free(args.buf);
+  tr_free(args.buf2);
   return 0;
 }
 
 int main(void)
 {
-    testFunc const tests[] =
+  testFunc const tests[] =
     {
-        test_flush_done
+      test_flush_done
     };
 
-    /* init the session */
-    session = libttest_session_init(NULL);
+  /* init the session */
+  session = libttest_session_init(NULL);
 
-    int ret = runTests(tests, NUM_TESTS(tests));
+  int ret = runTests(tests, NUM_TESTS(tests));
 
-    libttest_session_close(session);
+  libttest_session_close(session);
 
-    return ret;
+  return ret;
 }
