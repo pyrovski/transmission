@@ -36,6 +36,7 @@ tr_auto_option(WITH_INOTIFY         "Enable inotify support (on systems that sup
 tr_auto_option(WITH_KQUEUE          "Enable kqueue support (on systems that support it)" AUTO)
 tr_auto_option(WITH_LIBAPPINDICATOR "Use libappindicator in GTK+ client" AUTO)
 tr_auto_option(WITH_SYSTEMD         "Add support for systemd startup notification (on systems that support it)" AUTO)
+        option(ENABLE_COVERAGE      "Compile with code coverage instrumentation" OFF)
 
 set(TR_NAME ${PROJECT_NAME})
 
@@ -375,8 +376,10 @@ if(WIN32)
     endforeach()
 endif()
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fprofile-arcs -ftest-coverage")
-#set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -lcov --coverage")
+if(ENABLE_COVERAGE)
+  add_compile_options("--coverage")
+  link_libraries("-lgcov --coverage")
+endif()
 
 if(CMAKE_VERSION VERSION_LESS "3.1")
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
