@@ -1918,6 +1918,7 @@ static void sessionCloseImplStart(tr_session* session)
     int n;
     tr_torrent** torrents;
 
+    // TODO: locking
     session->isClosing = true;
 
     free_incoming_peer_port(session);
@@ -2050,6 +2051,7 @@ void tr_sessionClose(tr_session* session)
      * so we need to keep the transmission thread alive
      * for a bit while they tell the router & tracker
      * that we're closing now */
+    // TODO: locking
     while ((session->shared != NULL || session->web != NULL || session->announcer != NULL || session->announcer_udp != NULL) &&
         !deadlineReached(deadline))
     {

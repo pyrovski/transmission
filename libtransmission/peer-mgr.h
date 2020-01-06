@@ -112,10 +112,13 @@ enum
 
 int tr_peerMgrGetPeers(tr_torrent* tor, tr_pex** setme_pex, uint8_t address_type, uint8_t peer_list_mode, int max_peer_count);
 
+/* Concurrency: requires holding torrent lock */
 void tr_peerMgrStartTorrent(tr_torrent* tor);
 
+/* Concurrency: requires holding torrent lock */
 void tr_peerMgrStopTorrent(tr_torrent* tor);
 
+/* Concurrency: requires holding torrent lock */
 void tr_peerMgrAddTorrent(tr_peerMgr* manager, struct tr_torrent* tor);
 
 void tr_peerMgrRemoveTorrent(tr_torrent* tor);

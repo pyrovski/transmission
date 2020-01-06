@@ -58,7 +58,8 @@ bool tr_fdFileGetCachedMTime(tr_session* session, int torrent_id, tr_file_index_
 void tr_fdFileClose(tr_session* session, tr_torrent const* tor, tr_file_index_t file_num);
 
 /**
- * Closes all the files associated with a given torrent id
+ * Closes all the files associated with a given torrent id.
+ * Concurrency: requires that the session lock is held.
  */
 void tr_fdTorrentClose(tr_session* session, int torrentId);
 

@@ -17,10 +17,13 @@
  * @{
  */
 
+/* Concurrency: acquires the verification lock */
 void tr_verifyAdd(tr_torrent* tor, tr_verify_done_func callback_func, void* callback_user_data);
 
+/* Concurrency: acquires the verification lock */
 void tr_verifyRemove(tr_torrent* tor);
 
+/* Concurrency: acquires the verification lock */
 void tr_verifyClose(tr_session*);
 
 /* @} */

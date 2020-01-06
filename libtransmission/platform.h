@@ -77,4 +77,6 @@ void tr_lockUnlock(tr_lock*);
 /** @brief return nonzero if the specified lock is locked */
 bool tr_lockHave(tr_lock const*);
 
+// TODO: add condition variables
+
 /* @} */

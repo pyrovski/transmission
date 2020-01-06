@@ -928,6 +928,7 @@ static tr_announce_event tier_announce_event_pull(tr_tier* tier)
 
 static void torrentAddAnnounce(tr_torrent* tor, tr_announce_event e, time_t announceAt)
 {
+  // TODO: this probably needs a torrent lock
     struct tr_torrent_tiers* tt = tor->tiers;
 
     /* walk through each tier and tell them to announce */
@@ -1742,10 +1743,10 @@ static void onUpkeepTimer(evutil_socket_t foo UNUSED, short bar UNUSED, void* va
 {
     tr_announcer* announcer = vannouncer;
     tr_session* session = announcer->session;
-    bool const is_closing = session->isClosed;
     time_t const now = tr_time();
 
     tr_sessionLock(session);
+    bool const is_closing = session->isClosed;
 
     /* maybe send out some "stopped" messages for closed torrents */
     flushCloseMessages(announcer);

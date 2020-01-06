@@ -14,10 +14,11 @@
 
 #include "bandwidth.h" /* tr_bandwidth */
 #include "completion.h" /* tr_completion */
-#include "session.h" /* tr_sessionLock(), tr_sessionUnlock() */
+#include "session.h"
 #include "tr-assert.h"
 #include "utils.h" /* TR_GNUC_PRINTF */
 #include "ptrarray.h"
+#include "platform.h" /* tr_lock */
 
 struct tr_torrent_tiers;
 struct tr_magnet_info;
@@ -26,6 +27,8 @@ struct tr_magnet_info;
 ***  Package-visible ctor API
 **/
 
+// TODO: update concurrency note
+/* Concurrency: Aqcuires the session and torrent locks */
 void tr_torrentFree(tr_torrent* tor);
 
 void tr_ctorSetSave(tr_ctor* ctor, bool saveMetadataInOurTorrentsDir);
@@ -101,6 +104,7 @@ typedef enum
 }
 tr_verify_state;
 
+/* Concurrency: caller should hold the torrent lock. */
 void tr_torrentSetVerifyState(tr_torrent* tor, tr_verify_state state);
 
 tr_torrent_activity tr_torrentGetActivity(tr_torrent const* tor);
@@ -218,6 +222,8 @@ struct tr_torrent
     void* queue_started_user_data;
     void (* queue_started_callback)(tr_torrent*, void* queue_started_user_data);
 
+  // TODO: these should be organized into state variables. I.e., a torrent can't be running and stopping
+  // simultaneously.
     bool isRunning;
     bool isStopping;
     bool isDeleting;
@@ -252,6 +258,9 @@ struct tr_torrent
     bool finishedSeedingByIdle;
 
     tr_ptrArray labels;
+
+  // TODO: lock torrent appropriately. The session lock is currently used in place of a torrent lock.
+    tr_lock* lock;
 };
 
 static inline tr_torrent* tr_torrentNext(tr_session* session, tr_torrent* current)
@@ -279,17 +288,17 @@ static inline uint32_t tr_torBlockCountBytes(tr_torrent const* tor, tr_block_ind
 
 static inline void tr_torrentLock(tr_torrent const* tor)
 {
-    tr_sessionLock(tor->session);
+    tr_lockLock(tor->lock);
 }
 
 static inline bool tr_torrentIsLocked(tr_torrent const* tor)
 {
-    return tr_sessionIsLocked(tor->session);
+    return tr_lockHave(tor->lock);
 }
 
 static inline void tr_torrentUnlock(tr_torrent const* tor)
 {
-    tr_sessionUnlock(tor->session);
+    tr_lockUnlock(tor->lock);
 }
 
 static inline bool tr_torrentExists(tr_session const* session, uint8_t const* torrentHash)

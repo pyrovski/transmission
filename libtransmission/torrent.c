@@ -939,6 +939,8 @@ static void torrentInit(tr_torrent* tor, tr_ctor const* ctor)
     tor->magicNumber = TORRENT_MAGIC_NUMBER;
     tor->queuePosition = session->torrentCount;
     tor->labels = TR_PTR_ARRAY_INIT;
+    tor->lock = tr_lockNew();
+    tr_torrentLock(tor);
 
     tr_sha1(tor->obfuscatedHash, "req2", 4, tor->info.hash, SHA_DIGEST_LENGTH, NULL);
 
@@ -1066,6 +1068,7 @@ static void torrentInit(tr_torrent* tor, tr_ctor const* ctor)
         tr_torrentStart(tor);
     }
 
+    tr_torrentUnlock(tor);
     tr_sessionUnlock(session);
 }
 
@@ -1262,6 +1265,7 @@ tr_stat const* tr_torrentStatCached(tr_torrent* tor)
 void tr_torrentSetVerifyState(tr_torrent* tor, tr_verify_state state)
 {
     TR_ASSERT(tr_isTorrent(tor));
+    TR_ASSERT(tr_torrentIsLocked(tor));
     TR_ASSERT(state == TR_VERIFY_NONE || state == TR_VERIFY_WAIT || state == TR_VERIFY_NOW);
 
     tor->verifyState = state;
@@ -1690,15 +1694,20 @@ void tr_torrentSetHasPiece(tr_torrent* tor, tr_piece_index_t pieceIndex, bool ha
 static bool queueIsSequenced(tr_session*);
 #endif
 
+/* Concurrency: the caller should hold the session lock when calling this function.
+ * It doesn't make sense for the caller to hold the torrent lock because this function
+ * deletes it.
+ */
 static void freeTorrent(tr_torrent* tor)
 {
-    TR_ASSERT(!tor->isRunning);
 
     tr_session* session = tor->session;
+    TR_ASSERT(tr_sessionIsLocked(session));
+    tr_torrentLock(tor);
+    TR_ASSERT(!tor->isRunning);
+
     tr_info* inf = &tor->info;
     time_t const now = tr_time();
-
-    tr_sessionLock(session);
 
     tr_peerMgrRemoveTorrent(tor);
 
@@ -1747,10 +1756,10 @@ static void freeTorrent(tr_torrent* tor)
     tr_ptrArrayDestruct(&tor->labels, tr_free);
 
     tr_metainfoFree(inf);
+    tr_torrentUnlock(tor);
+    tr_lockFree(tor->lock);
     memset(tor, ~0, sizeof(tr_torrent));
     tr_free(tor);
-
-    tr_sessionUnlock(session);
 }
 
 /**
@@ -1765,9 +1774,8 @@ static void torrentStartImpl(void* vtor)
 
     TR_ASSERT(tr_isTorrent(tor));
 
-    tr_sessionLock(tor->session);
-
     tr_torrentRecheckCompleteness(tor);
+    tr_torrentLock(tor);
     torrentSetQueued(tor, false);
 
     time_t const now = tr_time();
@@ -1786,7 +1794,7 @@ static void torrentStartImpl(void* vtor)
     tor->lpdAnnounceAt = now;
     tr_peerMgrStartTorrent(tor);
 
-    tr_sessionUnlock(tor->session);
+    tr_torrentUnlock(tor);
 }
 
 uint64_t tr_torrentGetCurrentSizeOnDisk(tr_torrent const* tor)
@@ -1819,6 +1827,8 @@ static bool torrentShouldQueue(tr_torrent const* tor)
 
 static void torrentStart(tr_torrent* tor, bool bypass_queue)
 {
+    tr_sessionLock(tor->session);
+    tr_torrentLock(tor);
     switch (tr_torrentGetActivity(tor))
     {
     case TR_STATUS_SEED:
@@ -1860,7 +1870,6 @@ static void torrentStart(tr_torrent* tor, bool bypass_queue)
     }
 
     /* otherwise, start it now... */
-    tr_sessionLock(tor->session);
 
     /* allow finished torrents to be resumed */
     if (tr_torrentIsSeedRatioDone(tor))
@@ -1877,13 +1886,16 @@ static void torrentStart(tr_torrent* tor, bool bypass_queue)
     tr_torrentUnsetPeerId(tor);
     tor->isRunning = true;
     tr_torrentSetDirty(tor);
+    // If we're already in the event thread, we could induce deadlock because we hold the torrent lock and
+    // tr_runInEventThread() acquires the session lock. So, we acquire the session lock in this function.
     tr_runInEventThread(tor->session, torrentStartImpl, tor);
-
+    tr_torrentUnlock(tor);
     tr_sessionUnlock(tor->session);
 }
 
 void tr_torrentStart(tr_torrent* tor)
 {
+  // TODO: this should be an assert. The fact that it isn't smells like a lack of synchronization.
     if (tr_isTorrent(tor))
     {
         torrentStart(tor, false);
@@ -1892,6 +1904,7 @@ void tr_torrentStart(tr_torrent* tor)
 
 void tr_torrentStartNow(tr_torrent* tor)
 {
+  // TODO: this should be an assert. The fact that it isn't smells like a lack of synchronization.
     if (tr_isTorrent(tor))
     {
         torrentStart(tor, true);
@@ -1911,6 +1924,7 @@ static void onVerifyDoneThreadFunc(void* vdata)
     struct verify_data* data = vdata;
     tr_torrent* tor = data->tor;
 
+    tr_torrentLock(tor);
     if (tor->isDeleting)
     {
         goto cleanup;
@@ -1918,7 +1932,9 @@ static void onVerifyDoneThreadFunc(void* vdata)
 
     if (!data->aborted)
     {
+      	tr_torrentUnlock(tor);
         tr_torrentRecheckCompleteness(tor);
+	tr_torrentLock(tor);
     }
 
     if (data->callback_func != NULL)
@@ -1928,12 +1944,17 @@ static void onVerifyDoneThreadFunc(void* vdata)
 
     if (!data->aborted && tor->startAfterVerify)
     {
+        tr_free(data);
         tor->startAfterVerify = false;
+	// torrentStart() acquires the session lock, so we release the torrent lock.
+	tr_torrentUnlock(tor);
         torrentStart(tor, false);
+	return;
     }
 
 cleanup:
     tr_free(data);
+    tr_torrentUnlock(tor);
 }
 
 static void onVerifyDone(tr_torrent* tor, bool aborted, void* vdata)
@@ -1942,14 +1963,17 @@ static void onVerifyDone(tr_torrent* tor, bool aborted, void* vdata)
 
     TR_ASSERT(data->tor == tor);
 
+    tr_torrentLock(tor);
     if (tor->isDeleting)
     {
         tr_free(data);
-        return;
     }
-
-    data->aborted = aborted;
-    tr_runInEventThread(tor->session, onVerifyDoneThreadFunc, data);
+    else
+    {
+        data->aborted = aborted;
+        tr_runInEventThread(tor->session, onVerifyDoneThreadFunc, data);
+    }
+    tr_torrentUnlock(tor);
 }
 
 static void verifyTorrent(void* vdata)
@@ -1957,7 +1981,7 @@ static void verifyTorrent(void* vdata)
     bool startAfter;
     struct verify_data* data = vdata;
     tr_torrent* tor = data->tor;
-    tr_sessionLock(tor->session);
+    tr_torrentLock(tor);
 
     if (tor->isDeleting)
     {
@@ -1966,7 +1990,11 @@ static void verifyTorrent(void* vdata)
     }
 
     /* if the torrent's already being verified, stop it */
+    /* Release the torrent lock; tr_verifyRemove() acquires the verification lock, then the torrent lock. */
+    // TODO: we could acquire the verification lock in this function, but it's confined to another file.
+    tr_torrentUnlock(tor);
     tr_verifyRemove(tor);
+    tr_torrentLock(tor);
 
     startAfter = (tor->isRunning || tor->startAfterVerify) && !tor->isStopping;
 
@@ -1987,7 +2015,7 @@ static void verifyTorrent(void* vdata)
     }
 
 unlock:
-    tr_sessionUnlock(tor->session);
+    tr_torrentUnlock(tor);
 }
 
 void tr_torrentVerify(tr_torrent* tor, tr_verify_done_func callback_func, void* callback_data)
@@ -2021,15 +2049,18 @@ static void stopTorrent(void* vtor)
 
     tr_logAddTorInfo(tor, "%s", "Pausing");
 
+    tr_verifyRemove(tor);
+    // Need the session lock for tr_fdTorrentClose()
+    tr_sessionLock(tor->session);
     tr_torrentLock(tor);
 
-    tr_verifyRemove(tor);
     tr_peerMgrStopTorrent(tor);
     tr_announcerTorrentStopped(tor);
+    // TODO: is the cache thread-safe?
     tr_cacheFlushTorrent(tor->session->cache, tor);
 
     tr_fdTorrentClose(tor->session, tor->uniqueId);
-
+    
     if (!tor->isDeleting)
     {
         tr_torrentSave(tor);
@@ -2037,11 +2068,16 @@ static void stopTorrent(void* vtor)
 
     torrentSetQueued(tor, false);
 
-    tr_torrentUnlock(tor);
-
-    if (tor->magnetVerify)
+    const bool magnetVerify = tor->magnetVerify;
+    if (magnetVerify)
     {
         tor->magnetVerify = false;
+    }
+    tr_torrentUnlock(tor);
+    tr_sessionUnlock(tor->session);
+
+    if (magnetVerify)
+    {
         tr_logAddTorInfo(tor, "%s", "Magnet Verify");
         refreshCurrentDir(tor);
         tr_torrentVerify(tor, NULL, NULL);
@@ -2054,19 +2090,19 @@ void tr_torrentStop(tr_torrent* tor)
 
     if (tr_isTorrent(tor))
     {
-        tr_sessionLock(tor->session);
-
+	tr_torrentLock(tor);
         tor->isRunning = false;
         tor->isStopping = false;
         tr_torrentSetDirty(tor);
+	tr_torrentUnlock(tor);
         tr_runInEventThread(tor->session, stopTorrent, tor);
-
-        tr_sessionUnlock(tor->session);
     }
 }
 
 static void closeTorrent(void* vtor)
 {
+  // TODO: this function is called both from the event thread under ... (without necessarily holding the session lock)
+  // and from removeTorrent in the event thread (holding the session lock).
     tr_torrent* tor = vtor;
 
     TR_ASSERT(tr_isTorrent(tor));
@@ -2080,6 +2116,7 @@ static void closeTorrent(void* vtor)
     tor->magnetVerify = false;
     stopTorrent(tor);
 
+    tr_torrentLock(tor);
     if (tor->isDeleting)
     {
         tr_metainfoRemoveSaved(tor->session, &tor->info);
@@ -2087,23 +2124,25 @@ static void closeTorrent(void* vtor)
     }
 
     tor->isRunning = false;
+    tr_torrentUnlock(tor);
     freeTorrent(tor);
 }
 
 void tr_torrentFree(tr_torrent* tor)
 {
+  // TODO: this should be an assert. The fact that it isn't smells like a lack of synchronization.
     if (tr_isTorrent(tor))
     {
-        tr_session* session = tor->session;
-
-        TR_ASSERT(tr_isSession(session));
-
-        tr_sessionLock(session);
-
+	// Passing the function through the pipe uses its own lock. We only need to worry about shutting down
+	// the session, which doesn't seem to use the session lock anyway. Elsewhere, the session lock is used
+	// inconsistently for tr_runInEventThread().
+        // TODO: implement locking in session teardown.
+	tr_torrentLock(tor);
         tr_torrentClearCompletenessCallback(tor);
-        tr_runInEventThread(session, closeTorrent, tor);
+	tr_session *session = tor->session;
+	tr_torrentUnlock(tor);
 
-        tr_sessionUnlock(session);
+        tr_runInEventThread(session, closeTorrent, tor);
     }
 }
 
@@ -2279,10 +2318,14 @@ static void torrentCallScript(tr_torrent const* tor, char const* script)
     tr_free(torrent_dir);
 }
 
+// TODO: figure out a call graph for this function. Locking is proving to be problematic.
 void tr_torrentRecheckCompleteness(tr_torrent* tor)
 {
     tr_completeness completeness;
 
+    // Need the session lock for tr_fdTorrentClose().
+    TR_ASSERT(!tr_torrentIsLocked(tor));
+    tr_sessionLock(tor->session);
     tr_torrentLock(tor);
 
     completeness = tr_cpGetStatus(&tor->completion);
@@ -2318,7 +2361,9 @@ void tr_torrentRecheckCompleteness(tr_torrent* tor)
 
             if (tor->currentDir == tor->incompleteDir)
             {
+                tr_torrentUnlock(tor);
                 tr_torrentSetLocation(tor, tor->downloadDir, true, NULL, NULL);
+		tr_torrentLock(tor);
             }
         }
 
@@ -2342,6 +2387,7 @@ void tr_torrentRecheckCompleteness(tr_torrent* tor)
     }
 
     tr_torrentUnlock(tor);
+    tr_sessionUnlock(tor->session);
 }
 
 /***
@@ -2517,6 +2563,7 @@ void tr_torrentSetFileDLs(tr_torrent* tor, tr_file_index_t const* files, tr_file
 
     tr_torrentInitFileDLs(tor, files, fileCount, doDownload);
     tr_torrentSetDirty(tor);
+    // TODO: unlock torrent lock for tr_torrentRecheckCompleteness()?
     tr_torrentRecheckCompleteness(tor);
     tr_peerMgrRebuildRequests(tor);
 
@@ -2712,7 +2759,6 @@ void tr_torrentSetPieceChecked(tr_torrent* tor, tr_piece_index_t pieceIndex)
 void tr_torrentSetChecked(tr_torrent* tor, time_t when)
 {
     TR_ASSERT(tr_isTorrent(tor));
-
     for (tr_piece_index_t i = 0; i < tor->info.pieceCount; ++i)
     {
         tor->info.pieces[i].timeChecked = when;
@@ -3215,6 +3261,7 @@ static void deleteLocalData(tr_torrent* tor, tr_fileFunc func)
     tr_ptrArrayDestruct(&files, tr_free);
 }
 
+// TODO: calls tr_fdTorrentClose(), which requires the session lock.
 static void tr_torrentDeleteLocalData(tr_torrent* tor, tr_fileFunc func)
 {
     TR_ASSERT(tr_isTorrent(tor));
@@ -3250,6 +3297,7 @@ static void setLocation(void* vdata)
     tr_torrent* tor = data->tor;
 
     TR_ASSERT(tr_isTorrent(tor));
+    TR_ASSERT(!tr_torrentIsLocked(tor));
 
     tr_torrentLock(tor);
 
@@ -3265,7 +3313,10 @@ static void setLocation(void* vdata)
     if (!tr_sys_path_is_same(location, tor->currentDir, NULL))
     {
         /* bad idea to move files while they're being verified... */
-        tr_verifyRemove(tor);
+      // TODO: don't hold the torrent lock here
+      tr_torrentUnlock(tor);
+      tr_verifyRemove(tor);
+      tr_torrentLock(tor);
 
         /* try to move the files.
          * FIXME: there are still all kinds of nasty cases, like what
@@ -3312,6 +3363,11 @@ static void setLocation(void* vdata)
         if (!err && do_move)
         {
             /* blow away the leftover subdirectories in the old location */
+	  // TODO: this requires the session lock, but we don't have it. We don't want this function to require
+	  // it because then we can't run asynchronous moves. We could handle this with a new "MOVING" state by
+	  // setting the new state on the torrent, unlocking the torrent, locking the session, deleting data,
+	  // unlocking the session, locking the torrent, and continuing.
+	  // As-is, tests crash because we don't have the session lock.
             tr_torrentDeleteLocalData(tor, tr_sys_path_remove);
         }
     }
@@ -3592,6 +3648,7 @@ char* tr_torrentFindFile(tr_torrent const* tor, tr_file_index_t fileNum)
 static void refreshCurrentDir(tr_torrent* tor)
 {
     char const* dir = NULL;
+    tr_torrentLock(tor);
 
     if (tor->incompleteDir == NULL)
     {
@@ -3610,6 +3667,7 @@ static void refreshCurrentDir(tr_torrent* tor)
     TR_ASSERT(dir == tor->downloadDir || dir == tor->incompleteDir);
 
     tor->currentDir = dir;
+    tr_torrentUnlock(tor);
 }
 
 char* tr_torrentBuildPartial(tr_torrent const* tor, tr_file_index_t fileNum)

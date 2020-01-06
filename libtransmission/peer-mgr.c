@@ -308,6 +308,7 @@ void tr_peerDestruct(tr_peer* peer)
 
 static inline void managerLock(struct tr_peerMgr const* manager)
 {
+  // TODO: this could probably get its own lock?
     tr_sessionLock(manager->session);
 }
 
