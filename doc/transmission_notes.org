@@ -1,0 +1,99 @@
+* Transmission BitTorrent notes
+
+** Torrent state
+   
+   Existing torrent state tracking consists of occasional state transition checks,
+   but most functions don't check torrent state. I suspect the design intent was to 
+   restrict most torrent operations to the event thread.
+
+   Torrent operations that cannot be completed atomically must track their state in
+   the torrent object, and all torrent functions must check for torrent state before
+   continuing.
+
+*** Existing flags
+    - isRunning
+    - isStopping
+    - isDeleting
+    - startAfterVerify
+    - isDirty
+    - isQueued
+
+*** States and transitions
+**** States: see `tr_torrent_activity`
+    - Stopped: Initialized/stopped
+    - check wait: queued to verify file content
+    - check: verifying file content
+    - download wait: queued to download
+    - download: downloading
+    - seed wait: queued to seed
+    - seed: seeding
+
+** Concurrency
+*** Threading
+    libtransmission consists of five threads:
+    - Event
+      Reads from a pipe and executes arbitrary functions. Other threads 
+      (and the Event thread) write functions into the pipe with
+      tr_runInEventThread(). Because the Event thread can call arbitrary code,
+      it is difficult to determine which functions may be executed by the Event thread.
+      
+      The set of functions that could be executed by the Event thread is
+      determined by tracing a directed graph of function calls, starting with
+      arguments to tr_runInEventThread().
+
+      For a list of top-level functions, see event_funcs.txt. To reproduce this
+      list, run:
+      "git grep -n -i  runineve | cut -d, -f2 | egrep -v '#include|\*' | tr -d ' '  | sort"
+    - DHT
+      Interfaces with the DHT. Acquires the session lock for peer exchanges.
+    - Verification
+      Verifies torrent data on request.
+      - Interactions:
+        - Event?: 
+          - queues verification requests
+          - stops the current verification task
+      - Protected object access:
+	- Torrent piece completion
+	- Torrent files
+	Does not use the torrent lock (because it is just the session lock); doing so would
+        block the rest of the application from doing anything. Ideally, this would use a
+	per-torrent lock.
+    - Metadata
+      Creates torrent metadata files. Not used in the daemon.
+    - Web
+      Executes web requests. These consist of URL fetches for:
+      - Tracker requests
+      - Blocklist updates
+      - Port tests via the Transmission port test server
+      - Web torrents
+      
+    It's unclear which thread can call which functions. 
+
+*** Locking
+    libtransmission has ~11 locks:
+    - Session
+      Covers access to the libtransmission session. Not consistently used.
+    - Torrent
+      Probably intended to cover a single torrent, but is implemented using the session lock. Not consistently used.
+    - Peer manager
+      Covers the peer manager object, peer exchange, peer choking, bandwidth management,
+      torrent seed limits, peer reconnections, peer "atoms".
+      Implemented using the session lock.
+    - Swarm
+      Covers peer event processing.
+      Implemented using the manager lock, which is just a wrapper around the session lock.
+    - Metadata
+      Covers the metadata builder queue.
+    - Verification
+      Covers interaction between the event thread and the verification thread.
+    - Web
+      Covers access to the session list of web tasks.
+    - List
+      Covers a cache of recycled list nodes.
+    - Crypto-cyassl
+      Covers the random number generator.
+    - Crypto-polarssl
+      Covers the random number generator.
+    - Log
+      Serializes log output.
+      
