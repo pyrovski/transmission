@@ -25,3 +25,6 @@ po/*.mo
 /release
 third-party/miniupnp/miniupnpcstrings.h
 *~
+Doxyfile
+html
+TAGS
