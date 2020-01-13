@@ -1,6 +1,6 @@
+#+STARTUP: indent
 * Transmission BitTorrent notes
-
-** Torrent state
+ * Torrent state
    
    Existing torrent state tracking consists of occasional state transition checks,
    but most functions don't check torrent state. I suspect the design intent was to 
@@ -9,8 +9,7 @@
    Torrent operations that cannot be completed atomically must track their state in
    the torrent object, and all torrent functions must check for torrent state before
    continuing.
-
-*** Existing flags
+   * Existing flags
     - isRunning
     - isStopping
     - isDeleting
@@ -18,8 +17,8 @@
     - isDirty
     - isQueued
 
-*** States and transitions
-**** States: see `tr_torrent_activity`
+ * States and transitions
+   * States: see `tr_torrent_activity`
     - Stopped: Initialized/stopped
     - check wait: queued to verify file content
     - check: verifying file content
@@ -28,9 +27,9 @@
     - seed wait: queued to seed
     - seed: seeding
 
-** Concurrency
-*** Threading
-    libtransmission consists of five threads:
+* Concurrency
+ * Threading
+   libtransmission consists of five threads:
     - Event
       Reads from a pipe and executes arbitrary functions. Other threads 
       (and the Event thread) write functions into the pipe with
@@ -40,12 +39,21 @@
       The set of functions that could be executed by the Event thread is
       determined by tracing a directed graph of function calls, starting with
       arguments to tr_runInEventThread().
-
+      
       For a list of top-level functions, see event_funcs.txt. To reproduce this
       list, run:
       "git grep -n -i  runineve | cut -d, -f2 | egrep -v '#include|\*' | tr -d ' '  | sort"
     - DHT
       Interfaces with the DHT. Acquires the session lock for peer exchanges.
+      - Protected object access:
+	- Torrent object (without the torrent lock)
+	  - during DHT announce
+	  - during DHT upkeep
+	  - For periodic and other DHT callbacks (these acquire the session lock,
+            but only for peer exchange. Other session accesses are not protected.)
+	- Session object (without a lock)
+	  - For DHT status
+	  - For DHT bootstrap and init
     - Verification
       Verifies torrent data on request.
       - Interactions:
@@ -66,18 +74,20 @@
       - Blocklist updates
       - Port tests via the Transmission port test server
       - Web torrents
-      
-    It's unclear which thread can call which functions. 
-
-*** Locking
-    libtransmission has ~11 locks:
+        
+      - Protected object access:
+	- Session `web` tr_web->taskLock. Does not acquire the session lock.
+          
+   It's unclear which thread can call which functions. 
+   
+ * Locking
+   libtransmission has ~11 locks:
     - Session
       Covers access to the libtransmission session. Not consistently used.
     - Torrent
       Probably intended to cover a single torrent, but is implemented using the session lock. Not consistently used.
     - Peer manager
-      Covers the peer manager object, peer exchange, peer choking, bandwidth management,
-      torrent seed limits, peer reconnections, peer "atoms".
+      Covers the peer manager object, peer exchange, peer choking, bandwidth management, torrent seed limits, peer reconnections, peer "atoms".
       Implemented using the session lock.
     - Swarm
       Covers peer event processing.
@@ -97,3 +107,5 @@
     - Log
       Serializes log output.
       
+ * Potential improvements
+   Transmission appears to be full of race conditions. These arise from unprotected access to shared state (e.g., a torrent, a session). Perhaps this was originally mitigated by letting the event thread do most of the processing, but the DHT and Verification threads access shared state without locks.
