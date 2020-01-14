@@ -30,82 +30,110 @@
 * Concurrency
  * Threading
    libtransmission consists of five threads:
-    - Event
-      Reads from a pipe and executes arbitrary functions. Other threads 
-      (and the Event thread) write functions into the pipe with
-      tr_runInEventThread(). Because the Event thread can call arbitrary code,
-      it is difficult to determine which functions may be executed by the Event thread.
+   - Event
+     Reads from a pipe and executes arbitrary functions. Other threads (and the Event thread) write functions into the pipe with 'tr_runInEventThread()'. The Event thread also handles HTTP RPC requests. Because the Event thread can call arbitrary code, it is difficult to determine which functions may be executed by the Event thread.
       
-      The set of functions that could be executed by the Event thread is
-      determined by tracing a directed graph of function calls, starting with
-      arguments to tr_runInEventThread().
+     The set of functions that could be executed by the Event thread is determined by tracing a directed graph of function calls, starting with arguments to tr_runInEventThread().
       
-      For a list of top-level functions, see event_funcs.txt. To reproduce this
-      list, run:
-      "git grep -n -i  runineve | cut -d, -f2 | egrep -v '#include|\*' | tr -d ' '  | sort"
-    - DHT
-      Interfaces with the DHT. Acquires the session lock for peer exchanges.
-      - Protected object access:
-	- Torrent object (without the torrent lock)
-	  - during DHT announce
-	  - during DHT upkeep
-	  - For periodic and other DHT callbacks (these acquire the session lock,
-            but only for peer exchange. Other session accesses are not protected.)
-	- Session object (without a lock)
-	  - For DHT status
-	  - For DHT bootstrap and init
-    - Verification
-      Verifies torrent data on request.
-      - Interactions:
-        - Event?: 
-          - queues verification requests
-          - stops the current verification task
-      - Protected object access:
-	- Torrent piece completion
-	- Torrent files
-	Does not use the torrent lock (because it is just the session lock); doing so would
-        block the rest of the application from doing anything. Ideally, this would use a
-	per-torrent lock.
-    - Metadata
-      Creates torrent metadata files. Not used in the daemon.
-    - Web
-      Executes web requests. These consist of URL fetches for:
-      - Tracker requests
-      - Blocklist updates
-      - Port tests via the Transmission port test server
-      - Web torrents
+     For a list of top-level functions, see event_funcs.txt. To reproduce this list, run:
+     "git grep -n -i  runineve | cut -d, -f2 | egrep -v '#include|\*' | tr -d ' '  | sort"
+     'rpc-server.c' binds an RPC handler callback to the 'tr_rpc_server' struct. It uses the session event base, so HTTP events are probably handled in the event thread.
+   - DHT
+     Interfaces with the DHT. Acquires the session lock for peer exchanges.
+     - Protected object access:
+       - Torrent object (without the torrent lock)
+         - during DHT announce
+         - during DHT upkeep
+         - For periodic and other DHT callbacks (these acquire the session lock,
+           but only for peer exchange. Other session accesses are not protected.)
+       - Session object (without a lock)
+         - For DHT status
+         - For DHT bootstrap and init
+   - Verification
+     Verifies torrent data on request.
+     - Interactions:
+       - Event?: 
+         - queues verification requests
+         - stops the current verification task
+     - Protected object access:
+       - Torrent piece completion
+       - Torrent files
+       Does not use the torrent lock (because it is just the session lock); doing so would block the rest of the application from doing anything. Ideally, this would use a
+       per-torrent lock.
+   - Metadata
+     Creates torrent metadata files. Not used in the daemon.
+   - Web
+     Executes web requests. These consist of URL fetches for:
+     - Tracker requests
+     - Blocklist updates
+     - Port tests via the Transmission port test server
+     - Web torrents
         
-      - Protected object access:
-	- Session `web` tr_web->taskLock. Does not acquire the session lock.
+     - Protected object access:
+       - Session `web` tr_web->taskLock. Does not acquire the session lock.
           
    It's unclear which thread can call which functions. 
    
  * Locking
-   libtransmission has ~11 locks:
-    - Session
-      Covers access to the libtransmission session. Not consistently used.
-    - Torrent
-      Probably intended to cover a single torrent, but is implemented using the session lock. Not consistently used.
-    - Peer manager
-      Covers the peer manager object, peer exchange, peer choking, bandwidth management, torrent seed limits, peer reconnections, peer "atoms".
-      Implemented using the session lock.
-    - Swarm
-      Covers peer event processing.
-      Implemented using the manager lock, which is just a wrapper around the session lock.
-    - Metadata
-      Covers the metadata builder queue.
-    - Verification
-      Covers interaction between the event thread and the verification thread.
-    - Web
-      Covers access to the session list of web tasks.
-    - List
-      Covers a cache of recycled list nodes.
-    - Crypto-cyassl
-      Covers the random number generator.
-    - Crypto-polarssl
-      Covers the random number generator.
-    - Log
-      Serializes log output.
+   libtransmission has the following locks:
+   - Session
+     Covers access to the libtransmission session. Not consistently used.
+   - Event
+     Covers the event pipe
+   - Torrent
+     Probably intended to cover a single torrent, but is implemented using the session lock. Not consistently used.
+   - Peer manager
+     Covers the peer manager object, peer exchange, peer choking, bandwidth management, torrent seed limits, peer reconnections, peer "atoms".
+     Implemented using the session lock.
+   - Swarm
+     Covers peer event processing.
+     Implemented using the manager lock, which is just a wrapper around the session lock.
+   - Metadata
+     Covers the metadata builder queue.
+   - Verification
+     Covers interaction between the event thread and the verification thread.
+   - Web
+     Covers access to the session list of web tasks.
+   - List
+     Covers a cache of recycled list nodes.
+   - Crypto-cyassl
+     Covers the random number generator.
+   - Crypto-polarssl
+     Covers the random number generator.
+   - Log
+     Serializes log output.
       
  * Potential improvements
-   Transmission appears to be full of race conditions. These arise from unprotected access to shared state (e.g., a torrent, a session). Perhaps this was originally mitigated by letting the event thread do most of the processing, but the DHT and Verification threads access shared state without locks.
+   * Race conditions
+     Transmission appears to be full of race conditions. These arise from unprotected access to shared state (e.g., a torrent, a session). Perhaps this was originally mitigated by letting the event thread do most of the processing, but the DHT and Verification threads access shared state without locks. The session and torrent objects are accesses most often without locks. If we restrict torrent object access to the event thread, then torrent objects don't need locks. Alternatively, we could use the session lock to protect all torrents. This is similar to what is currently implemented (but not consistently used). However, it has the disadvantage of blocking all torrent processing while the session lock is held.
+
+     In order to restrict torrent access to the event thread (and not require torrent locks), we could use the existing closure-passing mechanism of writing function pointers and their arguments to a named pipe. This is not sufficient for synchronous access to torrent data, though; we need a mechanism for the event thread to notify the caller that the requested operation has completed. The appropriate tool for this is the condition variable.
+
+   * Use of sleep(), nanosleep()
+     Transmission has 26 calls to tr_wait_msec(), most of which would be better served by proper synchronization. In some cases, the effect of using sleep() over proper synchronization is limited to barely perceptible UI lag, but in other cases, the effect is in constrained network or disk throughput.
+
+   * Cross-filesystem moves block the whole application
+     Transmission attempts to detect moves that relocate torrent data within a single filesystem. In these cases, data files are relocated by renaming. However, cross-filesystem moves require Transmission to move file data byte by byte. Because moves are executed in the event thread (and because the require the session lock), no other events are processes while the move is in progress. With torrent sizes increasing, blocking all events during a move is becoming untenable. For example, moving a 100GB torrent between to disks at 100MiBps could take 16 minutes. During this time, no peer packets are being processed, no UIs are being updated, and the user cannot safely interrupt the move.
+
+   * Synchronous disk IO limits throughput
+     With network bit rates approaching those of spinning disks, reliance on synchronous disk IO limits client throughput. Downloading at 1 gbps, the client has only 1.5 microseconds to handle each packet. A synchronous write of a 10MiB piece will take at least ~100ms at 100MiBps. During this time, the client could receive 66 thousand packets, or ~95 MiB. Of course, some packets will be received by the OS during this time, but the client cannot process them, so the OS socket queue could fill up. If the client can process incoming packets at 1Gbps on one thread (regardless of OS receive queuing) and the disk can write at 100MiBps (with zero latency), the existing implementation is limited to 54.38 MiBps of throughput. In reality, disk latency is nonzero, which further reduces throughput.
+
+     (nr * nt) / (nt + dt) = maximum continuous throughput
+     nr * nt = dr * dt
+     nt + dt = 1s
+     0 < nt < 1
+     0 < dt < 1
+     dr = 104857600 Bps
+     nr = 125000000 Bps
+     nt = dr * (1 - nt) / nr = dr / nr - dr * nt / nr
+     nt * (1 + dr / nr) = dr / nr
+     nt = dr / nr / (1 + dr / nr) = .456s per second.
+     At .456s/s network time, the maximum continuous throughput is 57,023,130 Bps, or 45.6% of the network line rate.
+
+     TODO: how big are incoming receive queues?
+
+     For network filesystems, synchronous IO is even worse; network filesystems typically exhibit higher latency and lower throughput than local disks.
+
+     Offloading disk IO to a separate thread would improve the throughput constraint.
+
+     TODO: can libevent handle disk IO? I think I looked into this and decided it couldn't.
