@@ -131,6 +131,7 @@
      At .456s/s network time, the maximum continuous throughput is 57,023,130 Bps, or 45.6% of the network line rate.
 
      TODO: how big are incoming receive queues?
+     TODO: Linux buffers writes; this needs some benchmarks
 
      For network filesystems, synchronous IO is even worse; network filesystems typically exhibit higher latency and lower throughput than local disks.
 
